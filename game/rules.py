@@ -48,3 +48,11 @@ def hand_strength():
     # will be used for bidding
     # (in bidding, in euchre, will decide if player should go alone based off of value)
     return None
+
+def card_to_remove():
+    # empty for now, param empty too
+    # must return a card for the dealer to remove from their hand
+    # cannot be upcard
+    # should consider what the trump is
+    # discard either a junk card, or discard a card to get a void suit (trumpability)
+    return None
