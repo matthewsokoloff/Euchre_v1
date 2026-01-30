@@ -1,4 +1,5 @@
 from .deck import Deck
+from .game_state import GameState
 from .card import Card, Suit, Rank
 from .rules import is_right_bower, is_left_bower, effective_suit, legal_moves, decide_card, trick_winner, hand_strength, card_to_remove
 
