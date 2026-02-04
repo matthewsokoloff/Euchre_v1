@@ -137,18 +137,53 @@ class EuchreGame:
         print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}\n")
         return trick_winners
 
-    def set_hands(self):
-        # empty for now
-        # set the hands for testing/simulations
-        print("empty")
+    def set_hands(self, hands: list[list['Card']], upcard: 'Card', dealer: int = 0):
+        if len(hands) != 4:
+            raise ValueError("Must provide 4 hands")
+        for hand in hands:
+            if len(hand) != 5:
+                raise ValueError("Each hand must have 5 cards")
 
-    def remove_card_from_hand(self):
-        # empty for now
-        # if dealer is ordered up, will remove the card from their hand
-        # should call card_to_remove from rules.py
-        print("empty")
+        self.state.hands = hands
+        self.state.upcard = upcard
+        self.state.dealer = dealer
+        self.state.current_player = (dealer + 1) % 4
+        self.state.leader = self.state.current_player
+
+        # Reset scores for hand
+        self.tricks_won = [0, 0]
+        self.state.trump = None
+        self.makers_team = None
+        self.alone = False
+        self.state.trick.clear()
+
+        print(f"Test hands set. Dealer = Player {dealer}, Upcard = {upcard}")
+
+    def remove_card_from_hand(self, hand: list['Card'], card: 'Card') -> None:
+        for i, c in enumerate(hand):
+            if c.suit == card.suit and c.rank == card.rank:
+                del hand[i]
+                return
+        print("Hand contents:")
+        for c in hand:
+            print(f"  {c.rank} of {c.suit}")
+        print("Card to remove:", card.rank, "of", card.suit)
+        raise ValueError(f"Card {card} not found in hand!")
 
     def sim_game(self):
-        # empty for now
-        print("emtpy")
-        # a game goes until one team gets 10 or more points
+        print("=== Starting Euchre Simulation ===")
+        while max(self.team_scores) < 10:  # a game plays to 10pts
+            self.deal_new_hand()
+            self.do_bidding()
+            print(f"\nTrump suit is {self.state.trump}\n")
+
+            # Play hand
+            trick_winners = self.play_tricks()
+            self.score_hand(trick_winners)
+            print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}\n")
+
+        print("=== Game Over ===")
+        if self.team_scores[0] > self.team_scores[1]:
+            print("Team 0 wins!")
+        else:
+            print("Team 1 wins!")
