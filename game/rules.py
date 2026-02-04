@@ -3,13 +3,14 @@ from .card import Card, Suit, Rank
 
 def is_right_bower(card: Card, trump: Suit) -> bool:
     # the right bower is the Jack of trump
-    # empty for now
-    return False;
+    return card.rank == Rank.JACK and card.suit == trump
 
 def is_left_bower(card: Card, trump: Suit) -> bool:
     # the left bower is the jack of the same color suit as trump
-    # empty for now
-    return False;
+    if trump in [Suit.HEARTS, Suit.DIAMONDS]:
+        return card.rank == Rank.JACK and card.suit == (Suit.DIAMONDS if trump == Suit.HEARTS else Suit.HEARTS)
+    else:
+        return card.rank == Rank.JACK and card.suit == (Suit.CLUBS if trump == Suit.SPADES else Suit.SPADES)
 
 def effective_suit(card: Card, trump: Suit) -> Suit:
     # Returns the suit the card acts as (accounts for left bower)
@@ -30,6 +31,9 @@ def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
     return follow if follow else hand[:]
 
 def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = None) -> float:
+
+    # NEEDS FIXING
+
     # should return the card the user should play
     # should take a list of the legal moves based on the player's hand
     # if forced to play, play
@@ -120,6 +124,7 @@ def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
 
 def hand_strength():
     # empty, param empty
+    # NEEDS FIXING
     # should return the strength of the hand for a given trump suit
     # decide based on num of trump, ranking of trump, off suit aces
     # maybe based on void suits and or singles if dealer (discardability?)
@@ -129,6 +134,7 @@ def hand_strength():
 
 def card_to_remove():
     # empty for now, param empty too
+    # NEEDS FIXING
     # must return a card for the dealer to remove from their hand
     # cannot be upcard
     # should consider what the trump is

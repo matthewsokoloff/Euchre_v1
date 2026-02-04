@@ -146,6 +146,9 @@ class EuchreGame:
             f"(RULE: Stick the Dealer{' and goes alone!' if self.alone else ''})")
 
     def choose_trump_heuristic(self, hand, forbidden=None, player=None, round_number=1, upcard=None):
+
+        # NEEDS FIXING
+
         best_score = 0
 
         for suit in Suit:
@@ -183,6 +186,9 @@ class EuchreGame:
         return None, False
 
     def play_tricks(self):
+
+        # NEEDS FIXING
+
         # Plays all 5 tricks in the hand. Skips partner if maker goes alone.
         # Returns a list of winning player indices for each trick.
         trump = self.state.trump
@@ -279,7 +285,6 @@ class EuchreGame:
         return trick_winners
 
     def score_hand(self, tricks: list[int]):
-        # empty for now
         # scores the hand (all 5 tricks)
         # makers = team that called trump
         # defenders = other team
@@ -348,13 +353,7 @@ class EuchreGame:
         return trick_winners
 
     def play_hand_with_ismcts(self, ismcts_bot):
-        """
-        Full-hand ISMCTS simulation (step-free):
-        - Player 0 = ISMCTS
-        - Players 1-3 = heuristic bots
-        - Partner sits out if maker goes alone
-        - Prints ISMCTS win rates for Player 0
-        """
+        # Player 0 = ismcts
 
         self.deal_new_hand()
         self.do_bidding()
@@ -375,7 +374,7 @@ class EuchreGame:
                 player = (leader + i) % 4
                 hand = self.state.hands[player]
 
-                # Skip partner if maker goes alone
+                # skip partner if maker goes alone
                 if self.alone and player != getattr(self, "maker_index", None) and player % 2 == getattr(self,
                                                                                                          "makers_team",
                                                                                                          None):
@@ -387,10 +386,10 @@ class EuchreGame:
                     legal = hand[:]  # safety fallback
 
                 if player == 0:
-                    # ------------------ ISMCTS ------------------
+                    # ismcts
                     chosen_card = ismcts_bot.choose_card(self, player)
 
-                    # Ensure legal
+                    # ensure legal
                     if chosen_card not in legal:
                         chosen_card = max(
                             legal,
@@ -408,7 +407,7 @@ class EuchreGame:
                     print(f"Player {player} plays {card_to_play} (ISMCTS)")
 
                 else:
-                    # ---------------- Heuristic bots ----------------
+                    # heuristic bots
                     lead_suit = effective_suit(trick[0][1], self.state.trump) if trick else None
                     card_to_play = max(
                         legal,
