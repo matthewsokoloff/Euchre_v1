@@ -8,13 +8,13 @@ class EuchreGame:
     def __init__(self, human_player: int | None = None):
 
         self.state = GameState(
-            hands=[[] for _ in range(4)],
-            dealer=3,   # so first deal goes to play 0
-            trump=None,
-            trick=[],
-            scores=[0,0],
-            current_player=0,
-            leader=0)
+            hands = [[] for _ in range(4)],
+            dealer = 3,   # so first deal goes to play 0
+            trump = None,
+            trick = [],
+            scores = [0,0],
+            current_player = 0,
+            leader = 0)
 
         self.team_scores = [0,0] # team 0 and team 1
         self.human_player = human_player # store which player is human
@@ -50,7 +50,7 @@ class EuchreGame:
         self.alone = False
         dealer = self.state.dealer
 
-        print(f"Dealer is Player {dealer}")
+        print(f"Dealer is player {dealer}")
         print(f"Upcard is {self.state.upcard}\n")
 
         # --- Round 1: Order up ---

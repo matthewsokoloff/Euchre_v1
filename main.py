@@ -4,15 +4,6 @@ from algorithm.ismcts import ISMCTS
 
 
 def ismcts_decision_test():
-    """
-    Player 0 must decide what to lead.
-    Trump = HEARTS
-    Player 0 has:
-      - Right bower
-      - Ace of trump
-      - Off-suit Ace
-    ISMCTS should strongly prefer a trump lead.
-    """
 
     game = EuchreGame(human_player=None)
 
@@ -57,16 +48,16 @@ def ismcts_decision_test():
     game.state.current_player = 0
     game.state.leader = 0
 
-    print("\n=== ISMCTS Decision Test ===")
+    print("\nismcts test")
     chosen = game.decide_card(
         player=0,
         legal=hands[0],
         trick=[]
     )
-    print(f"\nISMCTS chose to lead: {chosen}")
+    print(f"\nismcts chose to lead: {chosen}")
 
 
 if __name__ == "__main__":
     game = EuchreGame(human_player=None)
-    ismcts_bot = ISMCTS(simulations=100)
+    ismcts_bot = ISMCTS(simulations=200)
     game.play_hand_with_ismcts(ismcts_bot)

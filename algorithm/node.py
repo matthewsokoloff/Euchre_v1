@@ -3,7 +3,7 @@ import math
 class ISMCTSNode:
     def __init__(self, parent=None, move=None):
         self.parent = parent
-        self.move = move          # Card that led to this node
+        self.move = move # Card that led to this node
         self.children = []
         self.visits = 0
         self.wins = 0
