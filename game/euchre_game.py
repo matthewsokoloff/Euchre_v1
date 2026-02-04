@@ -45,11 +45,104 @@ class EuchreGame:
         print(f"The upcard is {self.state.upcard}")
 
     def do_bidding(self):
-        # empty for now, to hold bidding code
-        # will use files from rules.py to bid
-        # go through round 1 and 2 bidding
+        self.makers_team = None
+        self.alone = False
+        dealer = self.state.dealer
 
-        print("Nothing here for bidding yet")
+        print(f"Dealer is Player {dealer}")
+        print(f"Upcard is {self.state.upcard}\n")
+
+        # --- Round 1: Order up ---
+        for i in range(4):
+            player = (dealer + 1 + i) % 4
+
+            # Prepare hand to evaluate
+            if player == dealer:
+                hand_for_eval = self.state.hands[player] + [self.state.upcard]
+            else:
+                hand_for_eval = self.state.hands[player]
+
+            # Evaluate trump for this hand
+            suit, alone = self.choose_trump_heuristic_for_hand(
+                hand_for_eval,
+                forbidden=None,
+                player=player,
+                round_number=1,
+                upcard=self.state.upcard
+            )
+
+            if suit == self.state.upcard.suit:
+                # This player orders up the upcard as trump
+                self.state.trump = suit
+                self.makers_team = player % 2
+                self.maker_index = player
+                self.alone = alone
+                print(f"Player {player} orders up {self.state.trump.name}"
+                    f"{' and goes alone!' if self.alone else ''}\n")
+
+                # Dealer picks up upcard
+                dealer_hand = self.state.hands[dealer]
+                dealer_hand.append(self.state.upcard)
+                print(f"Dealer (Player {dealer}) picks up upcard {self.state.upcard}")
+
+                # Discard weakest card
+                discard = min(dealer_hand, key=lambda c: (
+                    1000 if is_right_bower(c, suit) else
+                    900 if is_left_bower(c, suit) else
+                    500 + c.rank.value if effective_suit(c, suit) == suit else
+                    c.rank.value
+                ))
+                dealer_hand.remove(discard)
+                print(f"Dealer (Player {dealer}) discards {discard}\n")
+
+                return
+
+            else:
+                print(f"Player {player} passes\n")
+
+        # --- Round 2: call trump (excluding upcard suit) ---
+        for i in range(4):
+            player = (dealer + 1 + i) % 4
+            hand_for_eval = self.state.hands[player]
+
+            suit, alone = self.choose_trump_heuristic_for_hand(
+                hand_for_eval,
+                forbidden=self.state.upcard.suit,
+                player=player,
+                round_number=2
+            )
+
+            if suit:
+                self.state.trump = suit
+                self.makers_team = player % 2
+                self.maker_index = player
+                self.alone = alone
+                print(f"Player {player} calls {self.state.trump.name}"
+                    f"{' and goes alone!' if self.alone else ''}\n")
+                return
+            else:
+                print(f"Player {player} passes\n")
+
+        # --- Stick the dealer ---
+        dealer_hand = self.state.hands[dealer]  # do NOT include upcard in round 2
+        suit, alone = self.choose_trump_heuristic_for_hand(dealer_hand, forbidden=None)
+        if suit is None:
+            # fallback: pick suit with most cards
+            suit_counts = {s: 0 for s in Suit}
+            for card in dealer_hand:
+                eff_suit = effective_suit(card, Suit.HEARTS)  # HEARTS is safe as dummy trump
+                if eff_suit in suit_counts:  # just to be safe
+                    suit_counts[eff_suit] += 1
+                else:
+                    print(f"Warning: unexpected effective suit {eff_suit} for card {card}")
+            suit = max(suit_counts, key=suit_counts.get)
+            alone = False
+
+        self.state.trump = suit
+        self.makers_team = dealer % 2
+        self.alone = alone
+        print(f"Dealer (Player {dealer}) is forced to call {self.state.trump.name} "
+            f"(Stick the Dealer{' and goes alone!' if self.alone else ''})")
 
     def choose_trump_heuristic(self) -> 'Suit | None':
         # empty for now, for round 2 bidding
