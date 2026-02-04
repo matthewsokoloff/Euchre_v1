@@ -142,9 +142,9 @@ class EuchreGame:
         self.makers_team = dealer % 2
         self.alone = alone
         print(f"Dealer (Player {dealer}) is forced to call {self.state.trump.name} "
-            f"(Stick the Dealer{' and goes alone!' if self.alone else ''})")
+            f"(RULE: Stick the Dealer{' and goes alone!' if self.alone else ''})")
 
-    def choose_trump_heuristic(self) -> 'Suit | None':
+    def choose_trump_heuristic (self, player: int, forbidden: 'Suit | None') -> 'Suit | None':
         # empty for now, for round 2 bidding
         # a param must be the forbidden suit
         # should use hand_strength from rules.py to decide
@@ -152,8 +152,27 @@ class EuchreGame:
         # dealer stuck = must call trump even if bad cards
         # dealer stuck could go in bidding, if choose_trump
         # returns None to stuck dealer, choose on max # trump
-        print("empty")
-        return None
+        hand = self.state.hands[player]
+        best_suit = None
+        best_score = 0
+        best_breakdown = {}
+
+        for suit in Suit:
+            if suit == forbidden:
+                continue
+            strength, breakdown = hand_strength_debug(hand, suit)  # <-- unpack tuple
+            if strength > best_score:
+                best_score = strength
+                best_suit = suit
+                best_breakdown = breakdown
+
+        # Print reasoning for AI
+        print(f"Player {player} evaluating trump:")
+        for card, pts in best_breakdown.items():
+            print(f"  {card}: {pts}")
+        print(f"  Total strength for {best_suit.name if best_suit else 'none'}: {best_score}\n")
+
+        return best_suit if best_score >= 6 else None
 
     def play_tricks(self):
         # empty for now
