@@ -77,8 +77,8 @@ def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = No
 
         # Determine if card can win
         if base_value >= highest_so_far:
-            # Winning card: randomize slightly to break ties
-            base_value += random.uniform(0, 1)
+            # Winning card - prefer low  winning cards
+            base_value = 400 + card.rank.value
         else:
             # Losing card: junk slightly higher than absolute losing
             if eff_suit == trump or eff_suit == effective_suit(trick[0], trump):
