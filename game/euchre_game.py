@@ -107,13 +107,35 @@ class EuchreGame:
         return None
 
     def play_hand(self):
-        # empty for now
-        # should deal, bid, print hands (optional), play tricks, and score
-        print("empty")
+        self.deal_new_hand()  # deal cards and set upcard
+        self.do_bidding()  # choose trump
+        print(f"\nTrump is {self.state.trump}")
+        # show hands
+        for p, hand in enumerate(self.state.hands):
+            print(f"Player {p} hand: " + ", ".join(str(c) for c in hand))
+        # play tricks
+        trick_winners = self.play_tricks()
+        # score
+        self.score_hand(trick_winners)
+        print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
 
     def sim_hand(self):
-        # this should be for if you set the hand. or, could put this into play_hand
-        print("empty")
+        # Only deal if hands/upcard not already set
+        if not getattr(self.state, "hands", None) or not any(self.state.hands):
+            self.deal_new_hand()
+
+        if not getattr(self.state, "upcard", None):
+            # fallback: deal upcard if missing
+            self.state.upcard = self.deck.deal(1)[0]
+
+        self.do_bidding()  # bot chooses trump
+        print(f"\nTrump is {self.state.trump}\n")
+
+        # Play hand
+        trick_winners = self.play_tricks()
+        self.score_hand(trick_winners)
+        print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}\n")
+        return trick_winners
 
     def set_hands(self):
         # empty for now
