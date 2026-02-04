@@ -10,22 +10,19 @@ class ISMCTS:
         self.simulations = simulations
         self.debug = debug
 
-    # ======================================================
-    # PUBLIC ENTRY POINT
-    # ======================================================
     def choose_card(self, game, player):
         if player != 0:
-            raise ValueError("ISMCTS can only be used for player 0")
+            raise ValueError("ISMCTS currently only used for player 0")
 
         real_hand = list(game.state.hands[player])
         if not real_hand:
-            raise ValueError("Player 0 has an empty hand!")
+            raise ValueError("Player 0 has no cards")
 
         root = ISMCTSNode()
 
         def get_legal_moves(hand, trick, trump):
             moves = legal_moves(hand, trick, trump)
-            return moves if moves else list(hand)  # fallback to all cards
+            return moves if moves else list(hand)  # fallback to prevent errors (all cards)
 
         for _ in range(self.simulations):
             state = copy.deepcopy(game.state)
@@ -126,9 +123,7 @@ class ISMCTS:
                 return c
         return random.choice(real_hand)
 
-    # ======================================================
-    # ROLLOUT (play to end of hand)
-    # ======================================================
+    # play to end of hand
     def _rollout(self, state, perspective_player):
         tricks_won = [0, 0]
 
