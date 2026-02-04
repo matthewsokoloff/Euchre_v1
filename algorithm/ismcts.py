@@ -15,70 +15,65 @@ class ISMCTS:
             raise ValueError("ISMCTS currently only used for player 0")
 
         real_hand = list(game.state.hands[player])
-        if not real_hand:
-            raise ValueError("Player 0 has no cards")
-
         root = ISMCTSNode()
 
-        def get_legal_moves(hand, trick, trump):
-            moves = legal_moves(hand, trick, trump)
-            return moves if moves else list(hand)  # fallback to prevent errors (all cards)
-
         for _ in range(self.simulations):
+            # --- Determinization ---
             state = copy.deepcopy(game.state)
+            deck = [c for h in state.hands for c in h]
+            random.shuffle(deck)
+
+            for p in range(4):
+                if p != player:
+                    needed = len(state.hands[p])
+                    state.hands[p] = deck[:needed]
+                    deck = deck[needed:]
+
             state.hands[player] = list(real_hand)
             state.trick = list(state.trick)
 
             node = root
 
+            # =======================
+            # SELECTION + EXPANSION
+            # =======================
             while True:
-                current_player = state.current_player
-                alone = getattr(game, "alone", False)
-                makers_team = getattr(game, "makers_team", None)
-                maker_index = getattr(game, "maker_index", None)
+                current = state.current_player
+                hand = state.hands[current]
 
-                # Skip partner if maker is going alone
-                if alone and current_player != maker_index and makers_team is not None:
-                    if current_player % 2 == makers_team:
-                        state.current_player = (state.current_player + 1) % 4
-                        continue
-
-                hand = state.hands[current_player]
                 if not hand:
-                    # No cards left, skip
-                    state.current_player = (state.current_player + 1) % 4
+                    state.current_player = (current + 1) % 4
                     continue
 
-                legal = get_legal_moves(hand, state.trick, state.trump)
-                if not legal:
-                    legal = hand[:]  # safety fallback
+                legal = legal_moves(hand, state.trick, state.trump) or hand[:]
 
-                if current_player == player:
-                    untried = [c for c in node.untried_moves(legal) if c in legal]
-                    move = random.choice(untried) if untried else random.choice(legal)
-                    node = node.add_child(move)
-                    hand.remove(move)
-                    state.trick.append((player, move))
-                    state.current_player = (state.current_player + 1) % 4
-                else:
-                    # Heuristic play with fallback
-                    if legal:
-                        card = max(
-                            legal,
-                            key=lambda c: decide_card(
-                                c,
-                                effective_suit(state.trick[0][1], state.trump) if state.trick else None,
-                                state.trump,
-                                [c2 for _, c2 in state.trick] if state.trick else None
-                            )
-                        )
+                if current == player:
+                    # EXPAND
+                    untried = node.untried_moves(legal)
+                    if untried:
+                        move = random.choice(untried)
+                        node = node.add_child(move)
                     else:
-                        card = random.choice(hand)
-                    hand.remove(card)
-                    state.trick.append((current_player, card))
-                    state.current_player = (state.current_player + 1) % 4
+                        node = node.select_child()  # UCT
+                        move = node.move
+                else:
+                    # Opponent heuristic
+                    move = max(
+                        legal,
+                        key=lambda c: decide_card(
+                            c,
+                            effective_suit(state.trick[0][1], state.trump) if state.trick else None,
+                            state.trump,
+                            [c2 for _, c2 in state.trick] if state.trick else None
+                        )
+                    )
 
-                # Complete trick if 4 cards
+                # Apply move
+                hand.remove(move)
+                state.trick.append((current, move))
+                state.current_player = (current + 1) % 4
+
+                # Finish trick
                 if len(state.trick) == 4:
                     winner_idx = trick_winner([c for _, c in state.trick], 0, state.trump)
                     winner = state.trick[winner_idx][0]
@@ -86,42 +81,28 @@ class ISMCTS:
                     state.current_player = winner
                     state.leader = winner
 
-                    if current_player == player:
-                        break
-
-                # Break if player's turn is done but trick not yet complete
-                if current_player == player and len(state.trick) < 4:
+                # Stop expansion after one new node
+                if node.parent and node.visits == 0:
                     break
 
+            # =======================
+            # SIMULATION
+            # =======================
             reward = self._rollout(state, player)
 
-            # Backpropagate
-            n = node
-            while n:
-                n.visits += 1
-                n.wins += reward
-                n = n.parent
+            # =======================
+            # BACKPROPAGATION
+            # =======================
+            while node:
+                node.visits += 1
+                node.wins += reward
+                node = node.parent
 
-        # Choose best move safely
-        children_with_visits = [c for c in root.children if c.visits > 0]
-        if children_with_visits:
-            best_move = max(children_with_visits, key=lambda c: c.wins / c.visits).move
-        else:
-            best_move = random.choice(real_hand)
-
-        # Print concise stats
-        if self.debug:
-            print("\nISMCTS stats for Player 0:")
-            for child in root.children:
-                print(f"  Card {child.move}: {child.wins}/{child.visits} wins, "
-                      f"win rate = {child.wins/child.visits if child.visits else 0:.2f}")
-            print(f"Chosen card: {best_move}\n")
-
-        # Return actual card object from hand
-        for c in real_hand:
-            if c.suit == best_move.suit and c.rank == best_move.rank:
-                return c
-        return random.choice(real_hand)
+        # =======================
+        # FINAL MOVE SELECTION
+        # =======================
+        best = max(root.children, key=lambda c: c.wins / c.visits)
+        return next(c for c in real_hand if c == best.move)
 
     # play to end of hand
     def _rollout(self, state, perspective_player):
