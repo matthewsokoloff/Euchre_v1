@@ -17,13 +17,19 @@ def effective_suit(card: Card, trump: Suit) -> Suit:
         return trump
     return card.suit
 
-def legal_moves():
-    # empty for now, parameters also empty
-    # should return a list of cards the player can play (-> list['Card'])
-    return None
+def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card']:
+    # Returns a list of cards the player can legally play.
+    if not trick:
+        return hand[:]  # can lead anything
 
-def decide_card():
-    # empty for now, param also empty
+    lead_card = trick[0][1]
+    lead_suit = effective_suit(lead_card, trump)
+
+    # Must follow suit if possible
+    follow = [c for c in hand if effective_suit(c, trump) == lead_suit]
+    return follow if follow else hand[:]
+
+def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = None) -> float:
     # should return the card the user should play
     # should take a list of the legal moves based on the player's hand
     # if forced to play, play
@@ -31,14 +37,86 @@ def decide_card():
     # if the trick is lost, throw junk (separate func?)
     # must decide whether to take trick from partner or not
     # otherwise, play winning card
-    return None
 
-def trick_winner():
-    # empty, param empty
+    # should return a numeric strength for comparing cards in a trick.
+    eff_suit = effective_suit(card, trump)
+
+    # Base strength
+    if is_right_bower(card, trump):
+        base_value = 1000
+    elif is_left_bower(card, trump):
+        base_value = 1000  # same as right bower for ranking purposes
+    elif eff_suit == trump:
+        base_value = 500 + card.rank.value * 10
+    elif trick and eff_suit == effective_suit(trick[0], trump):
+        base_value = 300 + card.rank.value * 5
+    else:
+        base_value = card.rank.value  # off-suit junk
+
+    # Adjust based on trick state
+    if trick:
+        # Highest card in the trick so far
+        def card_rank_for_trick(c: Card) -> int:
+            c_eff = effective_suit(c, trump)
+            if is_right_bower(c, trump):
+                return 1000
+            elif is_left_bower(c, trump):
+                return 1000
+            elif c_eff == trump:
+                return 500 + c.rank.value * 10
+            elif c_eff == effective_suit(trick[0], trump):
+                return 300 + c.rank.value * 5
+            else:
+                return c.rank.value
+
+        highest_so_far = max(card_rank_for_trick(c) for c in trick)
+
+        # Determine if card can win
+        if base_value >= highest_so_far:
+            # Winning card: randomize slightly to break ties
+            base_value += random.uniform(0, 1)
+        else:
+            # Losing card: junk slightly higher than absolute losing
+            if eff_suit == trump or eff_suit == effective_suit(trick[0], trump):
+                # mid-strength losing card: keep modest value
+                base_value = 200 + card.rank.value
+            else:
+                # pure junk: very low
+                base_value = 50 + card.rank.value / 10
+
+    return base_value
+
+def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
+    """Returns the index (0-3) of the winner of the trick."""
+
     # should return the int of the player (0-3) who won the trick
     # highest number card wins. assign right bower 100, left 90, trump + 50
     # if not trump go by card #
-    return None
+
+    lead_suit = effective_suit(trick[0], trump)
+    best_idx = 0
+    best_value = -1
+
+    for i, card in enumerate(trick):
+        eff_suit = effective_suit(card, trump)
+
+        # Assign numeric value for comparison
+        if is_right_bower(card, trump):
+            value = 1000
+        elif is_left_bower(card, trump):
+            value = 900
+        elif eff_suit == trump:
+            value = 500 + card.rank.value
+        elif eff_suit == lead_suit:
+            value = 100 + card.rank.value
+        else:
+            value = 0
+
+        if value > best_value:
+            best_value = value
+            best_idx = i
+
+    return best_idx
 
 def hand_strength():
     # empty, param empty

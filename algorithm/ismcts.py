@@ -1,7 +1,7 @@
 import random
 import copy
 from algorithm.node import ISMCTSNode
-from game.rules import legal_moves, decide_card_heuristic, trick_winner, effective_suit
+from game.rules import legal_moves, decide_card, trick_winner, effective_suit
 from game.card import Card, Suit, Rank
 
 
@@ -68,7 +68,7 @@ class ISMCTS:
                     if legal:
                         card = max(
                             legal,
-                            key=lambda c: decide_card_heuristic(
+                            key=lambda c: decide_card(
                                 c,
                                 effective_suit(state.trick[0][1], state.trump) if state.trick else None,
                                 state.trump,
@@ -145,7 +145,7 @@ class ISMCTS:
 
             card = max(
                 legal,
-                key=lambda c: decide_card_heuristic(
+                key=lambda c: decide_card(
                     c,
                     effective_suit(state.trick[0][1], state.trump) if state.trick else None,
                     state.trump,

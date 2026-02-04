@@ -64,7 +64,7 @@ class EuchreGame:
                 hand_for_eval = self.state.hands[player]
 
             # Evaluate trump for this hand
-            suit, alone = self.choose_trump_heuristic_for_hand(
+            suit, alone = self.choose_trump_heuristic(
                 hand_for_eval,
                 forbidden=None,
                 player=player,
@@ -106,7 +106,7 @@ class EuchreGame:
             player = (dealer + 1 + i) % 4
             hand_for_eval = self.state.hands[player]
 
-            suit, alone = self.choose_trump_heuristic_for_hand(
+            suit, alone = self.choose_trump_heuristic(
                 hand_for_eval,
                 forbidden=self.state.upcard.suit,
                 player=player,
@@ -126,7 +126,7 @@ class EuchreGame:
 
         # --- Stick the dealer ---
         dealer_hand = self.state.hands[dealer]  # do NOT include upcard in round 2
-        suit, alone = self.choose_trump_heuristic_for_hand(dealer_hand, forbidden=None)
+        suit, alone = self.choose_trump_heuristic(dealer_hand, forbidden=None)
         if suit is None:
             # fallback: pick suit with most cards
             suit_counts = {s: 0 for s in Suit}
@@ -145,34 +145,42 @@ class EuchreGame:
         print(f"Dealer (Player {dealer}) is forced to call {self.state.trump.name} "
             f"(RULE: Stick the Dealer{' and goes alone!' if self.alone else ''})")
 
-    def choose_trump_heuristic (self, player: int, forbidden: 'Suit | None') -> 'Suit | None':
-        # a param must be the forbidden suit
-        # should use hand_strength from rules.py to decide
-        # if the dealer is stuck, must include that
-        # dealer stuck = must call trump even if bad cards
-        # dealer stuck could go in bidding, if choose_trump
-        # returns None to stuck dealer, choose on max # trump
-        hand = self.state.hands[player]
-        best_suit = None
+    def choose_trump_heuristic(self, hand, forbidden=None, player=None, round_number=1, upcard=None):
         best_score = 0
-        best_breakdown = {}
 
         for suit in Suit:
             if suit == forbidden:
                 continue
-            strength, breakdown = hand_strength(hand, suit)  # <-- unpack tuple
+
+            trump_count = 0
+            high_cards = 0
+            for card in hand:
+                eff_suit = effective_suit(card, suit)
+                if eff_suit == suit:
+                    trump_count += 1
+                    if card.rank in [Rank.ACE, Rank.KING, Rank.QUEEN, Rank.JACK]:
+                        high_cards += 1
+
+            strength = trump_count + high_cards / 2
+            if round_number == 1 and upcard and suit == upcard.suit:
+                strength += 0.5
+
             if strength > best_score:
                 best_score = strength
                 best_suit = suit
-                best_breakdown = breakdown
 
-        # Print reasoning for AI
-        print(f"Player {player} evaluating trump:")
-        for card, pts in best_breakdown.items():
-            print(f"  {card}: {pts}")
-        print(f"  Total strength for {best_suit.name if best_suit else 'none'}: {best_score}\n")
+        # Decide if going alone
+        alone = False
+        trump_cards = [c for c in hand if effective_suit(c, best_suit) == best_suit]
+        high_trump = [c for c in trump_cards if c.rank in [Rank.ACE, Rank.KING, Rank.QUEEN, Rank.JACK]]
+        if (len(trump_cards) >= 4 and len(high_trump) >= 2) or (len(trump_cards) >= 3 and len(high_trump) >= 3):
+            alone = True
 
-        return best_suit if best_score >= 6 else None
+        # Round 1 requires stronger hands to order up
+        min_strength = 4.5 if round_number == 1 else 3.5
+        if best_score >= min_strength:
+            return best_suit, alone
+        return None, False
 
     def play_tricks(self):
         # Plays all 5 tricks in the hand. Skips partner if maker goes alone.
@@ -338,6 +346,92 @@ class EuchreGame:
         self.score_hand(trick_winners)
         print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}\n")
         return trick_winners
+
+    def play_hand_with_ismcts(self, ismcts_bot):
+        """
+        Full-hand ISMCTS simulation (step-free):
+        - Player 0 = ISMCTS
+        - Players 1-3 = heuristic bots
+        - Partner sits out if maker goes alone
+        - Prints ISMCTS win rates for Player 0
+        """
+
+        self.deal_new_hand()
+        self.do_bidding()
+        print(f"\nTrump suit is {self.state.trump}")
+
+        for p, hand in enumerate(self.state.hands):
+            print(f"Player {p} hand: " + ", ".join(str(c) for c in hand))
+
+        print("\n=== ISMCTS FULL HAND (AUTO SIMULATION) ===")
+        leader = (self.state.dealer + 1) % 4
+        trick_winners = []
+
+        for trick_num in range(5):
+            print(f"\n--- Trick {trick_num + 1} ---")
+            trick = []
+
+            for i in range(4):
+                player = (leader + i) % 4
+                hand = self.state.hands[player]
+
+                # Skip partner if maker goes alone
+                if self.alone and player != getattr(self, "maker_index", None) and player % 2 == getattr(self,
+                                                                                                         "makers_team",
+                                                                                                         None):
+                    print(f"Player {player} sits out (partner is going alone)")
+                    continue
+
+                legal = legal_moves(hand, trick, self.state.trump)
+                if not legal:
+                    legal = hand[:]  # safety fallback
+
+                if player == 0:
+                    # ------------------ ISMCTS ------------------
+                    chosen_card = ismcts_bot.choose_card(self, player)
+
+                    # Ensure legal
+                    if chosen_card not in legal:
+                        chosen_card = max(
+                            legal,
+                            key=lambda c: decide_card(
+                                c,
+                                effective_suit(trick[0][1], self.state.trump) if trick else None,
+                                self.state.trump,
+                                [c2 for _, c2 in trick] if trick else None
+                            )
+                        )
+
+                    card_to_play = next(c for c in hand if c.suit == chosen_card.suit and c.rank == chosen_card.rank)
+                    self.remove_card_from_hand(hand, card_to_play)
+                    trick.append((player, card_to_play))
+                    print(f"Player {player} plays {card_to_play} (ISMCTS)")
+
+                else:
+                    # ---------------- Heuristic bots ----------------
+                    lead_suit = effective_suit(trick[0][1], self.state.trump) if trick else None
+                    card_to_play = max(
+                        legal,
+                        key=lambda c: decide_card(
+                            c,
+                            lead_suit,
+                            self.state.trump,
+                            [c2 for _, c2 in trick] if trick else None
+                        )
+                    )
+                    self.remove_card_from_hand(hand, card_to_play)
+                    trick.append((player, card_to_play))
+                    print(f"Player {player} plays {card_to_play}")
+
+            trick_cards = [c for _, c in trick]
+            winner_idx = trick_winner(trick_cards, 0, self.state.trump)
+            leader = trick[winner_idx][0]
+            print(f"Player {leader} wins the trick!")
+            trick_winners.append(leader)
+
+        # Score the hand
+        self.score_hand(trick_winners)
+        print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
 
     def set_hands(self, hands: list[list['Card']], upcard: 'Card', dealer: int = 0):
         if len(hands) != 4:
