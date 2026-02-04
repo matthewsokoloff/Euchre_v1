@@ -68,13 +68,42 @@ class EuchreGame:
         # must account for loners
         return None
 
-    def score_hand(self):
+    def score_hand(self, tricks: list[int]):
         # empty for now
         # scores the hand (all 5 tricks)
         # makers = team that called trump
         # defenders = other team
         # if the makers get 5, 2 pts. 3-4, 1 pt. <3, 0 pts.
         # if the defenders get 0-2, 0 pts. >2, 2 pts. (euchre)
+        if self.makers_team is None:
+            raise ValueError("Maker team not set! Cannot score hand") # error catching
+
+        makers = self.makers_team
+
+        # count tricks won by each team
+        team_tricks = [0, 0]
+        for winner in tricks:
+            team_tricks[winner % 2] += 1
+
+        makers_tricks = team_tricks[makers]
+        defenders_tricks = team_tricks[1 - makers]
+
+        if self.alone:
+            print(f"Team {makers}'s maker went alone!")
+
+        if makers_tricks < 3:
+            # Euchred
+            self.team_scores[1 - makers] += 2
+            print(f"Makers (team {makers}) euchred! Defenders get 2 points.")
+        elif makers_tricks == 5:
+            # Sweep (all)
+            points = 4 if self.alone else 2 # loner sweep gets 4, normal sweep gets 2
+            self.team_scores[makers] += points
+            print(f"Makers (team {makers}) took all 5 tricks! +{points} points")
+        else:
+            # Normal
+            self.team_scores[makers] += 1
+            print(f"Makers (team {makers}) made their bid! +1 point.")
         return None
 
     def play_hand(self):
