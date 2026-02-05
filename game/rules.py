@@ -36,17 +36,17 @@ def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
     follow = [card for card in hand if effective_suit(card, trump) == lead_suit]
     return follow if follow else hand[:]
 
+# decide_card needs to be fixed
 def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = None) -> float:
 
-    # NEEDS FIXING
-
-    # should return the card the user should play
-    # should take a list of the legal moves based on the player's hand
-    # if forced to play, play
-    # otherwise, should decide what to play based on the current trick state
+    # should return the best *legal* card that the user can play
+    # get list of legal plays
+    # if only one, play it
     # if the trick is lost, throw junk (separate func?)
-    # must decide whether to take trick from partner or not
-    # otherwise, play winning card
+    # if the trick is won by your partner, throw junk (try to single suit -> separate func?)
+    # don't trump partner ace
+    # if you made it, you should lead trump
+    # otherwise you should try to win the trick
 
     # should return a numeric strength for comparing cards in a trick.
     eff_suit = effective_suit(card, trump)
