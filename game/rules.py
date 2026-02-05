@@ -124,15 +124,50 @@ def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
 
     return best_index
 
-def hand_strength():
-    # empty, param empty
+def remove_worst_card(hand: list['Card'], upcard) -> list['Card']:
+    # should return the hand including the upcard, having removed the worst card
+    # should remove (in order of pref):
+    # not a trump
+    # a card to single suit
+    # a low card
+    return hand
+
+def num_void_suits(hand: list['Card']) -> int:
+    # returns the number of void suits in a hand (not counting trump, so a max of 3)
+    return 0
+
+def is_void_suit(hand: list['Card'], trump: Suit) -> bool:
+    # returns whether a hand is void in a given suit
+    return False
+
+def hand_strength(trump: Suit, hand: list['Card'], upcard: 'Card', dealer: bool):
+    # param: the trump suit we're trying to test, the current hand, the upcard and if the player is the dealer
     # NEEDS FIXING
     # should return the strength of the hand for a given trump suit
     # decide based on num of trump, ranking of trump, off suit aces
     # maybe based on void suits and or singles if dealer (discardability?)
     # will be used for bidding
     # (in bidding, in euchre, will decide if player should go alone based off of value)
+    strength = 0
 
+    if dealer: # add upcard to hand and remove the worst card
+        hand = remove_worst_card(hand, upcard)
+
+    for i, card in enumerate(hand):
+        eff_suit = effective_suit(card, trump)
+
+        if eff_suit == trump:
+            if is_right_bower(card, trump):
+                strength += 4
+            elif is_left_bower(card, trump):
+                strength += 3
+            elif card.rank == Rank.ACE:
+                strength += 2
+            else:
+                strength += 1
+        elif card.rank == Rank.ACE:
+            strength += 1
+    strength += num_void_suits
     return None
 
 def card_to_remove():
