@@ -124,13 +124,76 @@ def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
 
     return best_index
 
-def remove_worst_card(hand: list['Card'], upcard) -> list['Card']:
+def remove_worst_card(hand: list['Card'], upcard: Card, trump: Suit) -> list['Card']:
     # should return the hand including the upcard, having removed the worst card
     # should remove (in order of pref):
     # not a trump
     # a card to single suit
     # a low card
+
+
+    lowest_rank = 1000
+
+    # if all trump, throw the lowest
+    trump_count = 0
+
+    worst_card = hand[0]
+
+    single_suits = 0
+
+    for i, card in enumerate(hand):
+        eff_suit = effective_suit(card, trump)
+        if eff_suit == trump:
+            trump_count += 1
+    if trump_count == 5:
+        for j, card in enumerate(hand):
+            if card.rank.value < lowest_rank:
+                lowest_rank = card.rank.value
+                worst_card = card
+        hand.remove(worst_card)
+        hand.append(upcard)
+        return hand
+    elif trump_count == 4:
+        for k, card in enumerate(hand):
+            if card.rank != trump:
+                hand.remove(card)
+                hand.append(upcard)
+                return hand
+    # throw to single suit (if >1 void suits, don't void sister suit. if can void in 2 non sister suits, doesn't matter)
+    # otherwise, throw the lowest card
+    else:
+        for l, card in enumerate(hand):
+            eff_suit = effective_suit(card, trump)
+            if eff_suit != trump and is_single_in_suit(card, card.suit, trump): # should fix this so it checks for num single suits and discards the best option
+                hand.remove(card)
+                hand.append(upcard)
+                return hand
+        for m, card in enumerate(hand):
+            eff_suit = effective_suit(card, trump)
+            if eff_suit != trump:
+                if card.rank.value < lowest_rank:
+                    lowest_rank = card.rank.value
+                    worst_card = card
+        hand.remove(card)
+        hand.append(upcard)
+        return hand
+    print("error: remove_worst_card")
     return hand
+
+
+
+def is_single_in_suit(hand: list['Card'], suit: Suit, card: Card, trump: Suit) -> bool:
+    # returns a boolean for whether a card in a hand is the only one in the suit or not
+
+    count_in_suit = 0
+
+    for i, card in enumerate(hand):
+        eff_suit = effective_suit(card, trump)
+        if eff_suit == suit:
+            count_in_suit += 1
+    if count_in_suit == 1:
+        return True
+    return False
 
 def num_void_suits(hand: list['Card'], trump) -> int:
     # returns the number of void suits in a hand (not counting trump, so a max of 3)
@@ -153,7 +216,7 @@ def is_void_suit(hand: list['Card'], suit: Suit) -> bool:
             return False
     return True
 
-def hand_strength(trump: Suit, hand: list['Card'], upcard: 'Card', dealer: bool):
+def hand_strength(trump: Suit, hand: list['Card'], upcard: Card, dealer: bool):
     # returns a numeric value for the strength of a hand for a given trump
     strength = 0
 
