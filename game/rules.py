@@ -7,10 +7,16 @@ def is_right_bower(card: Card, trump: Suit) -> bool:
 
 def is_left_bower(card: Card, trump: Suit) -> bool:
     # the left bower is the jack of the same color suit as trump
-    if trump in [Suit.HEARTS, Suit.DIAMONDS]:
-        return card.rank == Rank.JACK and card.suit == (Suit.DIAMONDS if trump == Suit.HEARTS else Suit.HEARTS)
-    else:
-        return card.rank == Rank.JACK and card.suit == (Suit.CLUBS if trump == Suit.SPADES else Suit.SPADES)
+    if card.rank == Rank.JACK:
+        if trump == Suit.HEARTS and card.suit == Suit.DIAMONDS:
+            return True
+        elif trump == Suit.DIAMONDS and card.suit == Suit.HEARTS:
+            return True
+        elif trump == Suit.CLUBS and card.suit == Suit.SPADES:
+            return True
+        elif trump == Suit.SPADES and card.suit == Suit.CLUBS:
+            return True
+    return False
 
 def effective_suit(card: Card, trump: Suit) -> Suit:
     # Returns the suit the card acts as (accounts for left bower)
@@ -19,15 +25,15 @@ def effective_suit(card: Card, trump: Suit) -> Suit:
     return card.suit
 
 def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card']:
-    # Returns a list of cards the player can legally play.
+    # returns a list of cards the player can legally play.
     if not trick:
         return hand[:]  # can lead anything
 
     lead_card = trick[0][1]
     lead_suit = effective_suit(lead_card, trump)
 
-    # Must follow suit if possible
-    follow = [c for c in hand if effective_suit(c, trump) == lead_suit]
+    # must follow suit if possible
+    follow = [card for card in hand if effective_suit(card, trump) == lead_suit]
     return follow if follow else hand[:]
 
 def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = None) -> float:
@@ -49,7 +55,7 @@ def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = No
     if is_right_bower(card, trump):
         base_value = 1000
     elif is_left_bower(card, trump):
-        base_value = 1000  # same as right bower for ranking purposes
+        base_value = 900  # same as right bower for ranking purposes
     elif eff_suit == trump:
         base_value = 500 + card.rank.value * 10
     elif trick and eff_suit == effective_suit(trick[0], trump):
@@ -91,36 +97,32 @@ def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = No
     return base_value
 
 def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
-    """Returns the index (0-3) of the winner of the trick."""
+    # returns the index of the player (0-3) who won the trick
 
-    # should return the int of the player (0-3) who won the trick
-    # highest number card wins. assign right bower 100, left 90, trump + 50
-    # if not trump go by card #
 
     lead_suit = effective_suit(trick[0], trump)
-    best_idx = 0
-    best_value = -1
+    best_index = 0
+    best_val = -1
 
     for i, card in enumerate(trick):
         eff_suit = effective_suit(card, trump)
 
-        # Assign numeric value for comparison
         if is_right_bower(card, trump):
-            value = 1000
+            value = 100
         elif is_left_bower(card, trump):
-            value = 900
+            value = 90
         elif eff_suit == trump:
-            value = 500 + card.rank.value
+            value = 50 + card.rank.value
         elif eff_suit == lead_suit:
-            value = 100 + card.rank.value
+            value = 10 + card.rank.value
         else:
             value = 0
 
-        if value > best_value:
-            best_value = value
-            best_idx = i
+        if value > best_val:
+            best_val = value
+            best_index = i
 
-    return best_idx
+    return best_index
 
 def hand_strength():
     # empty, param empty
@@ -130,6 +132,7 @@ def hand_strength():
     # maybe based on void suits and or singles if dealer (discardability?)
     # will be used for bidding
     # (in bidding, in euchre, will decide if player should go alone based off of value)
+
     return None
 
 def card_to_remove():
