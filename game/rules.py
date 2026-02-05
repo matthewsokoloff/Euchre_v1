@@ -132,25 +132,34 @@ def remove_worst_card(hand: list['Card'], upcard) -> list['Card']:
     # a low card
     return hand
 
-def num_void_suits(hand: list['Card']) -> int:
+def num_void_suits(hand: list['Card'], trump) -> int:
     # returns the number of void suits in a hand (not counting trump, so a max of 3)
-    return 0
+    void_count = 0
+    if trump!= Suit.SPADES and is_void_suit(hand, Suit.SPADES):
+        void_count += 1
+    if trump!= Suit.CLUBS and is_void_suit(hand, Suit.CLUBS):
+        void_count += 1
+    if trump!= Suit.HEARTS and is_void_suit(hand, Suit.HEARTS):
+        void_count += 1
+    if trump!= Suit.HEARTS and is_void_suit(hand, Suit.HEARTS):
+        void_count += 1
+    return void_count
 
-def is_void_suit(hand: list['Card'], trump: Suit) -> bool:
+def is_void_suit(hand: list['Card'], suit: Suit) -> bool:
     # returns whether a hand is void in a given suit
-    return False
+    for i, card in enumerate(hand):
+        eff_suit = effective_suit(card, suit)
+        if eff_suit == suit:
+            return False
+    return True
 
 def hand_strength(trump: Suit, hand: list['Card'], upcard: 'Card', dealer: bool):
-    # param: the trump suit we're trying to test, the current hand, the upcard and if the player is the dealer
-    # NEEDS FIXING
-    # should return the strength of the hand for a given trump suit
-    # decide based on num of trump, ranking of trump, off suit aces
-    # maybe based on void suits and or singles if dealer (discardability?)
-    # will be used for bidding
-    # (in bidding, in euchre, will decide if player should go alone based off of value)
+    # returns a numeric value for the strength of a hand for a given trump
     strength = 0
 
-    if dealer: # add upcard to hand and remove the worst card
+    void_suits = num_void_suits(hand, trump)
+
+    if dealer and upcard: # if there's an upcard, add upcard to hand and remove the worst card
         hand = remove_worst_card(hand, upcard)
 
     for i, card in enumerate(hand):
@@ -163,12 +172,14 @@ def hand_strength(trump: Suit, hand: list['Card'], upcard: 'Card', dealer: bool)
                 strength += 3
             elif card.rank == Rank.ACE:
                 strength += 2
-            else:
+            elif card.rank == Rank.KING:
                 strength += 1
+            else:
+                if void_suits > 0:
+                    strength += 1
         elif card.rank == Rank.ACE:
             strength += 1
-    strength += num_void_suits
-    return None
+    return strength
 
 def card_to_remove():
     # empty for now, param empty too
