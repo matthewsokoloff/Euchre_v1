@@ -1,6 +1,11 @@
 import random
 from .card import Card, Suit, Rank
 
+
+
+# current needs to fix: calculate card strength, decide card, cards_to_win_trick, and need to do tests on all logic and stuff
+# and implement this funcs in the gameplay
+
 def is_right_bower(card: Card, trump: Suit) -> bool:
     # the right bower is the Jack of trump
     return card.rank == Rank.JACK and card.suit == trump
@@ -23,6 +28,12 @@ def effective_suit(card: Card, trump: Suit) -> Suit:
     if is_left_bower(card, trump):
         return trump
     return card.suit
+
+def calc_card_value() -> int:
+    # currently empty, needs fixing
+    # should return the value of a card (accounting for trump)
+
+    return 0
 
 def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card']:
     # returns a list of cards the player can legally play.
@@ -51,12 +62,12 @@ def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']]
         elif is_left_bower(card, trump):
             val_of_card = 900
         elif eff_suit == trump:
-            val_of_card += 100 + card.rank.value
+            val_of_card = 100 + card.rank.value
         else:
             val_of_card = card.rank.value
         if val_of_card > current_max:
             current_max = val_of_card
-            card_list.append(card)
+            cards_to_win.append(card)
 
     # if there are any cards that will win a trick, return them
     if len(card_list) > 0:
@@ -67,6 +78,9 @@ def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']]
 
 def throw_junk(legal_plays: list['Card']) -> Card:
     # returns a junk card
+
+    # if singleton, then void a suit
+    # if not, throw the lowest card (use find_lowest_card)
     return legal_plays[0]
 
 def find_lowest_card(cards: list['Card'], trump) -> Card:
@@ -111,7 +125,7 @@ def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
     else:
         cards_to_win = cards_to_win_trick(legal_plays, trick, trump)
         if cards_to_win is None:
-            card_to_play = find_worst_card(legal_plays, trump)
+            card_to_play = find_worst_card(legal_plays, trump) # if != able to win trick, throw out the optimal card
             return card_to_play
         else:
             # cards_to_win is a list of the cards that'll win the trick.
@@ -220,6 +234,7 @@ def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
     return best_index
 
 def find_worst_card(hand: list['Card'], trump: Suit) -> Card:
+    # returns the worst card in a hand (probably a card that should be discarded or thrown as junk)
     lowest_rank = 1000
     worst_card = hand[0]
 
@@ -286,14 +301,14 @@ def num_void_suits(hand: list['Card'], trump) -> int:
         void_count += 1
     if trump!= Suit.HEARTS and is_void_suit(hand, Suit.HEARTS):
         void_count += 1
-    if trump!= Suit.HEARTS and is_void_suit(hand, Suit.HEARTS):
+    if trump!= Suit.DIAMONDS and is_void_suit(hand, Suit.DIAMONDS):
         void_count += 1
     return void_count
 
-def is_void_suit(hand: list['Card'], suit: Suit) -> bool:
+def is_void_suit(hand: list['Card'], suit: Suit, trump: Suit) -> bool:
     # returns whether a hand is void in a given suit
     for i, card in enumerate(hand):
-        eff_suit = effective_suit(card, suit)
+        eff_suit = effective_suit(card, trump)
         if eff_suit == suit:
             return False
     return True
