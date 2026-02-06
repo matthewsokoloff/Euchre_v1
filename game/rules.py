@@ -36,24 +36,59 @@ def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
     follow = [card for card in hand if effective_suit(card, trump) == lead_suit]
     return follow if follow else hand[:]
 
-def trick_lost() -> bool:
-    return False
-
-def trick_won() -> bool:
-    return False
-
-def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card']:
+def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card'] or None:
     # returns a list of cards in the hand that will win a given trick
+    # if it returns None, no cards will win a given trick
     card_list = legal_plays
+    cards_to_win: list['Card'] = []
+    current_max: int = -1
+    val_of_card: int = 0
 
     for i, card in enumerate(card_list):
         eff_suit = effective_suit(card, trump)
+        if is_right_bower(card, trump):
+            val_of_card = 1000
+        elif is_left_bower(card, trump):
+            val_of_card = 900
+        elif eff_suit == trump:
+            val_of_card += 100 + card.rank.value
+        else:
+            val_of_card = card.rank.value
+        if val_of_card > current_max:
+            current_max = val_of_card
+            card_list.append(card)
 
+    # if there are any cards that will win a trick, return them
+    if len(card_list) > 0:
+        return card_list
 
-    return card_list
+    # if not, return None
+    return None
 
 def throw_junk(legal_plays: list['Card']) -> Card:
+    # returns a junk card
     return legal_plays[0]
+
+def find_lowest_card(cards: list['Card'], trump) -> Card:
+    # returns the lowest card out of a list of cards
+    minimum = 100000
+    card_val = 0
+    card_chosen: Card = cards[0]
+
+    for i, card in enumerate(cards):
+        eff_suit = effective_suit(card, trump)
+        if is_right_bower(card, trump):
+            card_val = 1000
+        elif is_left_bower(card, trump):
+            card_val = 900
+        elif eff_suit == trump:
+            card_val = 100 + card.rank.value
+        else:
+            card_val = card.rank.value
+        if card_val < minimum:
+            minimum = card_val
+            card_chosen = card
+    return card_chosen
 
 def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> Card:
     # returns the card the bot should play
@@ -74,13 +109,14 @@ def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
         # if maker team, lead trump (?)
         print('empty')
     else:
-        if trick_lost() or trick_won():
-            card_to_play = throw_junk(legal_plays)
+        cards_to_win = cards_to_win_trick(legal_plays, trick, trump)
+        if cards_to_win is None:
+            card_to_play = find_worst_card(legal_plays, trump)
             return card_to_play
         else:
-            best_plays = cards_to_win_trick(legal_plays, trick, trump) # best_plays is a list of the cards that'll win the trick.
+            # cards_to_win is a list of the cards that'll win the trick.
             # should pick the winning card based on the situation
-            return best_plays[0] # NEEDS FIXING
+            return cards_to_win[0] # NEEDS FIXING
 
     print("fail")
     return card_to_play
@@ -174,53 +210,49 @@ def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
 
     return best_index
 
-def remove_worst_card(hand: list['Card'], upcard: Card, trump: Suit) -> list['Card']:
-    # returns the hand with the upcard, having removed the worst card
-
+def find_worst_card(hand: list['Card'], trump: Suit) -> Card:
     lowest_rank = 1000
-
-    # if all trump, throw the lowest
-    trump_count = 0
-
     worst_card = hand[0]
 
-    for i, card in enumerate(hand):
-        eff_suit = effective_suit(card, trump)
-        if eff_suit == trump:
+    trump_count = 0
+    for card in hand:
+        if effective_suit(card, trump) == trump:
             trump_count += 1
+
+    # if 5 trump, lowest trump is worst
     if trump_count == 5:
-        for j, card in enumerate(hand):
+        for card in hand:
             if card.rank.value < lowest_rank:
                 lowest_rank = card.rank.value
                 worst_card = card
-        hand.remove(worst_card)
-        hand.append(upcard)
-        return hand
-    elif trump_count == 4:
-        for k, card in enumerate(hand):
-            if card.rank != trump:
-                hand.remove(card)
-                hand.append(upcard)
-                return hand
-    # throw to single suit (if >1 void suits, don't void sister suit. if it can void in 2 non sister suits, doesn't matter)
-    # otherwise, throw the lowest card
-    else:
-        for l, card in enumerate(hand):
-            eff_suit = effective_suit(card, trump)
-            if eff_suit != trump and is_single_in_suit(hand, card.suit, card, trump): # should fix this so it checks for num single suits and discards the best option
-                hand.remove(card)
-                hand.append(upcard)
-                return hand
-        for m, card in enumerate(hand):
-            eff_suit = effective_suit(card, trump)
-            if eff_suit != trump:
-                if card.rank.value < lowest_rank:
-                    lowest_rank = card.rank.value
-                    worst_card = card
-        hand.remove(worst_card)
-        hand.append(upcard)
-        return hand
-    print("error: remove_worst_card")
+        return worst_card
+
+    # if 4 trump → throw the lone non-trump
+    if trump_count == 4:
+        for card in hand:
+            if effective_suit(card, trump) != trump:
+                return card
+
+    # try to void a non-trump suit
+    for card in hand:
+        eff_suit = effective_suit(card, trump)
+        if eff_suit != trump and is_single_in_suit(hand, card.suit, card, trump):
+            return card
+
+    # otherwise throw lowest non-trump
+    for card in hand:
+        eff_suit = effective_suit(card, trump)
+        if eff_suit != trump and card.rank.value < lowest_rank:
+            lowest_rank = card.rank.value
+            worst_card = card
+
+    return worst_card
+
+def remove_worst_card(hand: list['Card'], upcard: Card, trump: Suit) -> list['Card']:
+    # returns the hand with the upcard, having removed the worst card
+    worst_card = find_worst_card(hand, trump)
+    hand.remove(worst_card)
+    hand.append(upcard)
     return hand
 
 def is_single_in_suit(hand: list['Card'], suit: Suit, card: Card, trump: Suit) -> bool:
