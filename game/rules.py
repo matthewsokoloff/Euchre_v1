@@ -36,6 +36,56 @@ def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
     follow = [card for card in hand if effective_suit(card, trump) == lead_suit]
     return follow if follow else hand[:]
 
+def trick_lost() -> bool:
+    return False
+
+def trick_won() -> bool:
+    return False
+
+def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card']:
+    # returns a list of cards in the hand that will win a given trick
+    card_list = legal_plays
+
+    for i, card in enumerate(card_list):
+        eff_suit = effective_suit(card, trump)
+
+
+    return card_list
+
+def throw_junk(legal_plays: list['Card']) -> Card:
+    return legal_plays[0]
+
+def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> Card:
+    # returns the card the bot should play
+
+    if trick:
+        lead_card = trick[0][1]
+        lead_suit = effective_suit(lead_card, trump)
+
+    # get a list of the legal moves
+    legal_plays: list['Card'] = legal_moves(hand, trick, trump)
+    best_plays = legal_plays
+    card_to_play = legal_plays[0]
+
+    if len(legal_plays) == 1:
+        return legal_plays[0] # play the one forced card
+
+    if not trick:
+        # if maker team, lead trump (?)
+        print('empty')
+    else:
+        if trick_lost() or trick_won():
+            card_to_play = throw_junk(legal_plays)
+            return card_to_play
+        else:
+            best_plays = cards_to_win_trick(legal_plays, trick, trump) # best_plays is a list of the cards that'll win the trick.
+            # should pick the winning card based on the situation
+            return best_plays[0] # NEEDS FIXING
+
+    print("fail")
+    return card_to_play
+
+
 # decide_card needs to be fixed
 def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = None) -> float:
 
@@ -47,6 +97,7 @@ def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = No
     # don't trump partner ace
     # if you made it, you should lead trump
     # otherwise you should try to win the trick
+
 
     # should return a numeric strength for comparing cards in a trick.
     eff_suit = effective_suit(card, trump)
