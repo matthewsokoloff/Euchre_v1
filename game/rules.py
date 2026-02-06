@@ -121,6 +121,15 @@ def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
     print("fail")
     return card_to_play
 
+def sister_suit(suit) -> Suit:
+    if suit == Suit.SPADES:
+        return Suit.CLUBS
+    if suit == Suit.CLUBS:
+        return Suit.SPADES
+    if suit == Suit.HEARTS:
+        return Suit.DIAMONDS
+    if suit == Suit.DIAMONDS:
+        return Suit.HEARTS
 
 # decide_card needs to be fixed
 def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = None) -> float:
