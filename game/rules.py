@@ -2,7 +2,6 @@ import random
 from .card import Card, Suit, Rank
 
 
-
 # current needs to fix: calculate card strength, decide card, cards_to_win_trick, and need to do tests on all logic and stuff
 # and implement this funcs in the gameplay
 
@@ -98,28 +97,39 @@ def find_lowest_card(cards: list['Card'], trump) -> Card:
             card_chosen = card
     return card_chosen
 
-def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit', my_id) -> Card:
-    # returns the card the bot should play
-    # my_id is the player id % 2
+def decide_move(hand: list['Card'], trick: list[tuple[int, 'Card']], trump: 'Suit', my_id: int) -> Card:
+    # my_id is team id (player_id % 2)
 
-    legal_plays: list['Card'] = legal_moves(hand, trick, trump)
+    # get legal plays
+    legal_plays = legal_moves(hand, trick, trump)
 
     # forced play
     if len(legal_plays) == 1:
         return legal_plays[0]
 
-    # if leading, lead the strongest legal card
+    # if leading, lead the strongest card for now
     if not trick:
         return max(legal_plays, key=lambda c: card_value(c, trump))
 
-    # find lead suit
-    lead_suit = effective_suit(trick[0][1], trump)
+    # find current trick winner
+    cards_only = [card for _, card in trick]
+    leader = trick[0][0]
+    winning_player = trick_winner(cards_only, leader, trump)
+    winning_card = cards_only[(winning_player - leader) % 4]
 
-    # find who's winning the trick right now
-    winning_player, winning_card = trick[0]
-    # if the current trick winner is partner, throw junk
-    # else take cards_to_win_trick() and return the min
-    return hand[0]
+    # if partner winning, throw junk
+    if (winning_player % 2) == my_id:
+        return find_worst_card(legal_plays, trump)
+
+    # else take trick w/ the lowest winning card
+    winning_moves = [
+        card for card in legal_plays
+        if card_value(card, trump) > card_value(winning_card, trump)
+    ]
+
+    if winning_moves:
+        return min(winning_moves, key=lambda c: card_value(c, trump))
+    return find_worst_card(legal_plays, trump)
 
 def sister_suit(suit) -> Suit:
     if suit == Suit.SPADES:
