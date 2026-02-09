@@ -98,36 +98,28 @@ def find_lowest_card(cards: list['Card'], trump) -> Card:
             card_chosen = card
     return card_chosen
 
-def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> Card:
+def decide_move(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit', my_id) -> Card:
     # returns the card the bot should play
+    # my_id is the player id % 2
 
-    if trick:
-        lead_card = trick[0][1]
-        lead_suit = effective_suit(lead_card, trump)
-
-    # get a list of the legal moves
     legal_plays: list['Card'] = legal_moves(hand, trick, trump)
-    best_plays = legal_plays
-    card_to_play = legal_plays[0]
 
+    # forced play
     if len(legal_plays) == 1:
-        return legal_plays[0] # play the one forced card
+        return legal_plays[0]
 
+    # if leading, lead the strongest legal card
     if not trick:
-        # if maker team, lead trump (?)
-        print('empty')
-    else:
-        cards_to_win = cards_to_win_trick(legal_plays, trick, trump)
-        if cards_to_win is None:
-            card_to_play = find_worst_card(legal_plays, trump) # if != able to win trick, throw out the optimal card
-            return card_to_play
-        else:
-            # cards_to_win is a list of the cards that'll win the trick.
-            # should pick the winning card based on the situation
-            return cards_to_win[0] # NEEDS FIXING
+        return max(legal_plays, key=lambda c: card_value(c, trump))
 
-    print("fail")
-    return card_to_play
+    # find lead suit
+    lead_suit = effective_suit(trick[0][1], trump)
+
+    # find who's winning the trick right now
+    winning_player, winning_card = trick[0]
+    # if the current trick winner is partner, throw junk
+    # else take cards_to_win_trick() and return the min
+    return hand[0]
 
 def sister_suit(suit) -> Suit:
     if suit == Suit.SPADES:
@@ -201,20 +193,44 @@ def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = No
     return base_value
 
 def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
-    # returns the index of the player (0-3) who won the trick
+    # returns index 0-3 of player who won trick
 
     lead_suit = effective_suit(trick[0], trump)
+
     best_index = 0
-    best_val = -1
-    value: int = 0
+    best_card = trick[0]
 
-    for i, card in enumerate(trick):
-        value = card_value(card, trump)
-        if value > best_val:
-            best_val = value
+    for i in range(1, len(trick)):
+        card = trick[i]
+
+        best_suit = effective_suit(best_card, trump)
+        card_suit = effective_suit(card, trump)
+
+        # trump beats non-trump
+        if card_suit == trump and best_suit != trump:
+            best_card = card
             best_index = i
+            continue
 
-    return best_index
+        if card_suit != trump and best_suit == trump:
+            continue
+
+        # both trump OR both non-trump
+        if card_suit == best_suit:
+            if card_value(card, trump) > card_value(best_card, trump):
+                best_card = card
+                best_index = i
+            continue
+
+        # neither trump → lead suit wins
+        if card_suit == lead_suit and best_suit != lead_suit:
+            best_card = card
+            best_index = i
+            continue
+
+        # otherwise, best_card stays
+
+    return (leader + best_index) % 4
 
 def find_worst_card(hand: list['Card'], trump: Suit) -> Card:
     # returns the worst card in a hand (probably a card that should be discarded or thrown as junk)
@@ -278,19 +294,19 @@ def is_single_in_suit(hand: list['Card'], suit: Suit, card: Card, trump: Suit) -
 def num_void_suits(hand: list['Card'], trump) -> int:
     # returns the number of void suits in a hand (not counting trump, so a max of 3)
     void_count = 0
-    if trump!= Suit.SPADES and is_void_suit(hand, Suit.SPADES):
+    if trump!= Suit.SPADES and is_void_suit(hand, Suit.SPADES, trump):
         void_count += 1
-    if trump!= Suit.CLUBS and is_void_suit(hand, Suit.CLUBS):
+    if trump!= Suit.CLUBS and is_void_suit(hand, Suit.CLUBS, trump):
         void_count += 1
-    if trump!= Suit.HEARTS and is_void_suit(hand, Suit.HEARTS):
+    if trump!= Suit.HEARTS and is_void_suit(hand, Suit.HEARTS, trump):
         void_count += 1
-    if trump!= Suit.DIAMONDS and is_void_suit(hand, Suit.DIAMONDS):
+    if trump!= Suit.DIAMONDS and is_void_suit(hand, Suit.DIAMONDS, trump):
         void_count += 1
     return void_count
 
 def is_void_suit(hand: list['Card'], suit: Suit, trump: Suit) -> bool:
     # returns whether a hand is void in a given suit
-    for i, card in enumerate(hand):
+    for card in hand:
         eff_suit = effective_suit(card, trump)
         if eff_suit == suit:
             return False
