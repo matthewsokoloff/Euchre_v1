@@ -1,12 +1,9 @@
 # tests for the functions in rules.py
 from game.card import Card, Suit, Rank
-from game.rules import (
-    is_right_bower, is_left_bower, effective_suit, card_value, legal_moves,
+from game.rules import (is_right_bower, is_left_bower, effective_suit, card_value,
     throw_junk, find_lowest_card, decide_move, sister_suit, trick_winner,
     find_worst_card, remove_worst_card, is_single_in_suit, num_void_suits,
-    is_void_suit, hand_strength, cards_to_win_trick
-)
-
+    is_void_suit, hand_strength, cards_to_win_trick, legal_moves)
 
 def test_all():
     print("=== Bower Tests ===")
