@@ -1,10 +1,6 @@
 import random
 from .card import Card, Suit, Rank
 
-
-# current needs to fix: calculate card strength, decide card, cards_to_win_trick, and need to do tests on all logic and stuff
-# and implement this funcs in the gameplay
-
 def is_right_bower(card: Card, trump: Suit) -> bool:
     # the right bower is the Jack of trump
     return card.rank == Rank.JACK and card.suit == trump
@@ -77,12 +73,17 @@ def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']]
     # if not, return None
     return None
 
-def throw_junk(legal_plays: list['Card']) -> Card:
+def throw_junk(legal_plays: list['Card'], trump: 'Suit') -> 'Card':
     # returns a junk card
+    # if there's a legal singleton, makes a void suit
+    # otherwise play the lowest card
+    # Check for singletons (auto-ensures it's not trump)
+    for card in legal_plays:
+        if effective_suit(card, trump) != trump and is_single_in_suit(legal_plays, card.suit, card, trump):
+            return card
 
-    # if singleton, then void a suit
-    # if not, throw the lowest card (use find_lowest_card)
-    return legal_plays[0]
+    # Otherwise, return the lowest card
+    return find_lowest_card(legal_plays, trump)
 
 def find_lowest_card(cards: list['Card'], trump) -> Card:
     # returns the lowest card out of a list of cards
