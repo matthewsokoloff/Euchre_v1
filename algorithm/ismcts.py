@@ -1,7 +1,7 @@
 import random
 import copy
 from algorithm.node import ISMCTSNode
-from game.rules import legal_moves, decide_card, trick_winner, effective_suit
+from game.rules import legal_moves, decide_move, trick_winner, effective_suit
 
 
 class ISMCTS:
@@ -16,16 +16,12 @@ class ISMCTS:
         for _ in range(4):
             state.current_player = (state.current_player + 1) % 4
 
-            # No lone hand → always valid
-            if not getattr(state, "alone", False):
-                return
-
-            maker = state.maker_index
-            team = state.makers_team
-
-            # Skip lone maker's partner
-            if state.current_player != maker and state.current_player % 2 == team:
-                continue
+            # Skip lone maker's partner if alone
+            if getattr(state, "alone", False):
+                maker = state.maker_index
+                team = state.makers_team
+                if state.current_player != maker and state.current_player % 2 == team:
+                    continue
 
             return
 
@@ -43,7 +39,7 @@ class ISMCTS:
             # -------- Determinization --------
             state = copy.deepcopy(game.state)
 
-            deck = [c for h in state.hands for c in h]
+            deck = [c for h in state.hands for c in h if h is not None]
             random.shuffle(deck)
 
             for p in range(4):
@@ -81,28 +77,17 @@ class ISMCTS:
                         node = node.best_child()
                         move = node.move
                 else:
-                    move = max(
-                        legal,
-                        key=lambda c: decide_card(
-                            c,
-                            effective_suit(state.trick[0][1], state.trump)
-                            if state.trick else None,
-                            state.trump,
-                            [c2 for _, c2 in state.trick]
-                            if state.trick else None,
-                        )
-                    )
+                    move = decide_move(hand, state.trick, state.trump, player)
 
                 # Apply move
                 hand.remove(move)
                 state.trick.append((current, move))
                 self._advance_player(state)
 
-                # Resolve trick
+                # Resolve trick if full
                 if len(state.trick) == 4:
-                    winner_idx = trick_winner(
-                        [c for _, c in state.trick], 0, state.trump
-                    )
+                    trick_cards = [c for _, c in state.trick]
+                    winner_idx = trick_winner(trick_cards, 0, state.trump)
                     winner = state.trick[winner_idx][0]
                     state.trick.clear()
                     state.current_player = winner
@@ -123,7 +108,7 @@ class ISMCTS:
 
         # -------- Final move selection --------
         best = max(root.children, key=lambda c: c.wins / c.visits)
-        return next(c for c in real_hand if c == best.move)
+        return next(c for c in real_hand if c.suit == best.move.suit and c.rank == best.move.rank)
 
     # -------------------------
     # Rollout (safe, bounded)
@@ -143,26 +128,16 @@ class ISMCTS:
 
             legal = legal_moves(hand, state.trick, state.trump) or hand[:]
 
-            card = max(
-                legal,
-                key=lambda c: decide_card(
-                    c,
-                    effective_suit(state.trick[0][1], state.trump)
-                    if state.trick else None,
-                    state.trump,
-                    [c2 for _, c2 in state.trick]
-                    if state.trick else None,
-                )
-            )
+            card = decide_move(hand, state.trick, state.trump, player)
 
             hand.remove(card)
             state.trick.append((player, card))
             self._advance_player(state)
 
+            # Resolve trick
             if len(state.trick) == 4:
-                winner_idx = trick_winner(
-                    [c for _, c in state.trick], 0, state.trump
-                )
+                trick_cards = [c for _, c in state.trick]
+                winner_idx = trick_winner(trick_cards, 0, state.trump)
                 winner = state.trick[winner_idx][0]
                 state.trick.clear()
                 state.current_player = winner
