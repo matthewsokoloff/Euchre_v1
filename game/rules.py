@@ -29,11 +29,21 @@ def effective_suit(card: Card, trump: Suit) -> Suit:
         return trump
     return card.suit
 
-def calc_card_value() -> int:
-    # currently empty, needs fixing
-    # should return the value of a card (accounting for trump)
-
-    return 0
+def card_value(card: Card, trump: Suit) -> int:
+    # returns val for a card
+    # right bower is 1000
+    # left bower is 900
+    # trump is the value + 100
+    # non trump is just the value of the card
+    value = card.rank.value
+    eff_suit = effective_suit(card, trump)
+    if is_right_bower(card, trump):
+        return 1000
+    elif is_left_bower(card, trump):
+        return 900
+    elif eff_suit == trump:
+        value += 100
+    return value
 
 def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card']:
     # returns a list of cards the player can legally play.
@@ -56,15 +66,7 @@ def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']]
     val_of_card: int = 0
 
     for i, card in enumerate(card_list):
-        eff_suit = effective_suit(card, trump)
-        if is_right_bower(card, trump):
-            val_of_card = 1000
-        elif is_left_bower(card, trump):
-            val_of_card = 900
-        elif eff_suit == trump:
-            val_of_card = 100 + card.rank.value
-        else:
-            val_of_card = card.rank.value
+        val_of_card = card_value(card, trump)
         if val_of_card > current_max:
             current_max = val_of_card
             cards_to_win.append(card)
@@ -90,15 +92,7 @@ def find_lowest_card(cards: list['Card'], trump) -> Card:
     card_chosen: Card = cards[0]
 
     for i, card in enumerate(cards):
-        eff_suit = effective_suit(card, trump)
-        if is_right_bower(card, trump):
-            card_val = 1000
-        elif is_left_bower(card, trump):
-            card_val = 900
-        elif eff_suit == trump:
-            card_val = 100 + card.rank.value
-        else:
-            card_val = card.rank.value
+        card_val = card_value(card, trump)
         if card_val < minimum:
             minimum = card_val
             card_chosen = card
@@ -212,21 +206,10 @@ def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
     lead_suit = effective_suit(trick[0], trump)
     best_index = 0
     best_val = -1
+    value: int = 0
 
     for i, card in enumerate(trick):
-        eff_suit = effective_suit(card, trump)
-
-        if is_right_bower(card, trump):
-            value = 100
-        elif is_left_bower(card, trump):
-            value = 90
-        elif eff_suit == trump:
-            value = 50 + card.rank.value
-        elif eff_suit == lead_suit:
-            value = 10 + card.rank.value
-        else:
-            value = 0
-
+        value = card_value(card, trump)
         if value > best_val:
             best_val = value
             best_index = i
