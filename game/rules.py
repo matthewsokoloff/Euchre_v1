@@ -141,67 +141,6 @@ def sister_suit(suit) -> Suit:
     if suit == Suit.DIAMONDS:
         return Suit.HEARTS
 
-# decide_card needs to be fixed
-def decide_card(card: Card, lead_suit: Suit, trump: Suit, trick: list[Card] = None) -> float:
-
-    # should return the best *legal* card that the user can play
-    # get list of legal plays
-    # if only one, play it
-    # if the trick is lost, throw junk (separate func?)
-    # if the trick is won by your partner, throw junk (try to single suit -> separate func?)
-    # don't trump partner ace
-    # if you made it, you should lead trump
-    # otherwise you should try to win the trick
-
-
-    # should return a numeric strength for comparing cards in a trick.
-    eff_suit = effective_suit(card, trump)
-
-    # Base strength
-    if is_right_bower(card, trump):
-        base_value = 1000
-    elif is_left_bower(card, trump):
-        base_value = 900  # same as right bower for ranking purposes
-    elif eff_suit == trump:
-        base_value = 500 + card.rank.value * 10
-    elif trick and eff_suit == effective_suit(trick[0], trump):
-        base_value = 300 + card.rank.value * 5
-    else:
-        base_value = card.rank.value  # off-suit junk
-
-    # Adjust based on trick state
-    if trick:
-        # Highest card in the trick so far
-        def card_rank_for_trick(c: Card) -> int:
-            c_eff = effective_suit(c, trump)
-            if is_right_bower(c, trump):
-                return 1000
-            elif is_left_bower(c, trump):
-                return 1000
-            elif c_eff == trump:
-                return 500 + c.rank.value * 10
-            elif c_eff == effective_suit(trick[0], trump):
-                return 300 + c.rank.value * 5
-            else:
-                return c.rank.value
-
-        highest_so_far = max(card_rank_for_trick(c) for c in trick)
-
-        # Determine if card can win
-        if base_value >= highest_so_far:
-            # Winning card - prefer low  winning cards
-            base_value = 400 + card.rank.value
-        else:
-            # Losing card: junk slightly higher than absolute losing
-            if eff_suit == trump or eff_suit == effective_suit(trick[0], trump):
-                # mid-strength losing card: keep modest value
-                base_value = 200 + card.rank.value
-            else:
-                # pure junk: very low
-                base_value = 50 + card.rank.value / 10
-
-    return base_value
-
 def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
     # returns index 0-3 of player who won trick
 
