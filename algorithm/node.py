@@ -11,16 +11,19 @@ class ISMCTSNode:
     def uct(self, total_visits, c = 1.41):
         if self.visits == 0:
             return float("inf")
+        # below is a formula called upper confidence bound applied to trees
         return (self.wins / self.visits) + c * math.sqrt(math.log(total_visits) / self.visits)
 
     def best_child(self):
         return max(self.children, key = lambda c: c.visits) # returns the child with the largest visit count
 
+    # manage moves
+
     def untried_moves(self, legal_moves):
         tried = {child.move for child in self.children}
-        return [m for m in legal_moves if m not in tried]
+        return [m for m in legal_moves if m not in tried] # given a list of legal moves, return unexplored moves
 
     def add_child(self, move):
         child = ISMCTSNode(parent = self, move = move)
         self.children.append(child)
-        return child
+        return child # adds a new child node for a move
