@@ -2,9 +2,31 @@ import unittest
 from game import euchre_game, rules
 from game.card import Card, Suit, Rank
 from game.euchre_game import EuchreGame
+from algorithm.ismcts import ISMCTS
+from game.rules import legal_moves
+from algorithm.node import ISMCTSNode
 
 class TestEuchreGame(unittest.TestCase):
 
+    def test_card_win_rates(self):
+        game = EuchreGame()
+        game.deal_new_hand()
+        player = 0
+        hand = list(game.state.hands[player])
+
+        bot = ISMCTS(simulations=5000, debug=False)
+
+        # Build root node mid-game with mini-simulations
+        root = bot.build_test_root(game, player, simulations_per_card=2000)
+
+        print(f"Player {player} hand: {[str(c) for c in hand]}")
+        print("Estimated win rates for legal cards:")
+
+        for child in root.children:
+            win_rate = child.wins / child.visits if child.visits > 0 else 0
+            print(f"{child.move}: {win_rate:.2f}")
+
+"""
     def test_simulate_one_hand_debug(self):
         game = EuchreGame()
         try:
@@ -245,6 +267,7 @@ class TestEuchreGame(unittest.TestCase):
         self.game.team_scores = [0, 0]
         self.game.score_hand([1, 1, 1, 0, 1])
         self.assertEqual(self.game.team_scores[1], 2)
+"""
 
 if __name__ == "__main__":
     unittest.main()

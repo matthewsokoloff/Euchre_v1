@@ -140,3 +140,70 @@ class ISMCTS:
 
         my_team = perspective_player % 2
         return 1 if tricks_won[my_team] >= 3 else 0
+
+    # for testing
+    def build_test_root(self, game, player, simulations_per_card=10):
+        """
+        Build a root node from the current game state (mid-game).
+        Runs a small number of simulations per legal card for testing.
+        Returns the root node with win statistics.
+        """
+        root = ISMCTSNode()
+        hand = list(game.state.hands[player])
+
+        # Determine legal moves for this hand at current trick
+        legal = legal_moves(hand, game.state.trick, game.state.trump) or hand[:]
+
+        for move in legal:
+            child = root.add_child(move)
+            child.visits = 0
+            child.wins = 0
+
+            for _ in range(simulations_per_card):
+                # Copy game state so we don't modify original
+                state = copy.deepcopy(game.state)
+
+                # Play the selected move for the player
+                state.hands[player] = [c for c in state.hands[player] if c != move]
+                state.trick.append((player, move))
+
+                # Continue the rest of the trick and hand with random legal moves
+                current_player = (player + 1) % 4
+                steps = 0
+                while any(state.hands) and steps < 20:  # limit steps for speed
+                    steps += 1
+                    cur_hand = state.hands[current_player]
+                    if not cur_hand:
+                        current_player = (current_player + 1) % 4
+                        continue
+
+                    legal_cur = legal_moves(cur_hand, state.trick, state.trump) or cur_hand[:]
+                    chosen = random.choice(legal_cur)
+                    cur_hand.remove(chosen)
+                    state.trick.append((current_player, chosen))
+
+                    # Resolve trick if full
+                    if len(state.trick) == 4:
+                        trick_cards = [c for _, c in state.trick]
+                        winner_idx = trick_winner(trick_cards, 0, state.trump)
+                        winner = state.trick[winner_idx][0]
+                        state.trick.clear()
+                        current_player = winner
+                    else:
+                        current_player = (current_player + 1) % 4
+
+                # Determine reward: did player’s team win more tricks than opponents?
+                # For simplicity, reward = 1 if player’s team won at least 1 trick
+                # You could enhance this to count actual tricks
+                tricks_won = [0, 0]
+                # count last trick as won by winner of last resolved trick
+                if len(state.trick) == 0:
+                    # simple: randomly assign tricks won to teams for fast test
+                    tricks_won[player % 2] = random.randint(0, 3)
+                    tricks_won[(player + 1) % 2] = 5 - tricks_won[player % 2]
+
+                reward = 1 if tricks_won[player % 2] > tricks_won[(player + 1) % 2] else 0
+                child.visits += 1
+                child.wins += reward
+
+        return root
