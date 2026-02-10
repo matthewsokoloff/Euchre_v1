@@ -62,72 +62,56 @@ class EuchreGame:
         if best_score >= min_strength:
             return best_suit, alone
         else:
+            if round_number == 3: # if the dealer is being stuck, force pick of the best suit
+                return best_suit
             return None, False
 
     def do_bidding(self):
-        """
-        Handles the bidding phase of a Euchre hand.
-        Uses rules.py functions to evaluate hand strength and pick trump.
-        """
+        # bidding for euchre hand using functions from rules.py
         dealer = self.state.dealer
 
-        # Round 1: order up the upcard
+        # round 1 (bidding on upcard)
         for i in range(4):
             player = (dealer + 1 + i) % 4
-            # Dealer can use upcard for evaluation
+            # dealer's hand should temporarily discard their worst card and add the upcard
             hand_for_eval = self.state.hands[player].copy()
             if player == dealer:
-                hand_for_eval.append(self.state.upcard)
+                remove_worst_card(hand_for_eval, self.state.upcard, self.state.upcard.suit)
 
-            suit, alone = self.choose_trump(
-                hand_for_eval,
-                forbidden=None,
-                round_number=1,
-                upcard=self.state.upcard
-            )
+            if player != dealer:
+                suit, alone = self.choose_trump(hand_for_eval, forbidden = None, round_number = 1, upcard = self.state.upcard)
+                # if the suit matches the upcard, player orders it up
+                if suit == self.state.upcard.suit:
+                    self.state.trump = suit
+                    self.makers_team = player % 2
+                    self.maker_index = player
+                    self.alone = alone
 
-            # If suit matches upcard, player orders it up
-            if suit == self.state.upcard.suit:
-                self.state.trump = suit
-                self.makers_team = player % 2
-                self.maker_index = player
-                self.alone = alone
+                    # the dealer picks up upcard if they are the dealer
+                    if dealer == player:
+                        self.state.hands[dealer] = remove_worst_card(self.state.hands[dealer], self.state.upcard, suit)
+                    return  # bidding done
 
-                # Dealer picks up upcard if they are the dealer
-                if dealer == player:
-                    self.state.hands[dealer] = remove_worst_card(self.state.hands[dealer], self.state.upcard, suit)
-                return  # bidding done
-
-        # Round 2: call any other trump suit (cannot be upcard suit)
+        # round 2: if everyone passes on the upcard (trump can be called on any other suit)
         for i in range(4):
             player = (dealer + 1 + i) % 4
-            suit, alone = self.choose_trump(
-                self.state.hands[player],
-                forbidden=self.state.upcard.suit,
-                round_number=2
-            )
+            suit, alone = self.choose_trump(self.state.hands[player], forbidden = self.state.upcard.suit, round_number = 2)
             if suit:
                 self.state.trump = suit
                 self.makers_team = player % 2
                 self.maker_index = player
                 self.alone = alone
-                return  # bidding done
+                return # bidding done
 
-        # If no one calls, dealer must choose trump
-        suit, alone = self.choose_trump(
-            self.state.hands[dealer],
-            forbidden=None,
-            round_number=2
-        )
-        if suit is None:
-            # fallback: choose suit with most cards
-            suit = max(Suit, key=lambda s: sum(1 for c in self.state.hands[dealer] if effective_suit(c, s) == s))
-            alone = False
-
-        self.state.trump = suit
-        self.makers_team = dealer % 2
-        self.maker_index = dealer
-        self.alone = alone
+            # if no one calls it, stick the dealer
+            suit, alone = self.choose_trump(self.state.hands[dealer], forbidden = self.state.upcard.suit, round_number = 3)
+            if suit:
+                self.state.trump = suit
+                self.makers_team = dealer % 2
+                self.maker_index = dealer
+                self.alone = alone
+                return # bidding done
+            print('error') # if it gets this far, something went wrong
 
     def play_tricks(self):
         trump = self.state.trump
