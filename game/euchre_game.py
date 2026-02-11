@@ -29,7 +29,7 @@ class EuchreGame:
         self.state.leader = self.state.current_player
         self.tricks_won = [0, 0]
         self.state.upcard = self.deck.deal(1)[0]
-        print(f"The upcard is {self.state.upcard}")
+        # print(f"The upcard is {self.state.upcard}")
 
     def choose_trump(self, hand: list[Card], forbidden: Suit | None = None, round_number: int = 1, upcard: Card | None = None, dealer: bool = False):
         # chooses trump
@@ -125,7 +125,7 @@ class EuchreGame:
                 trick.append((player, card_to_play))
                 # print(f"{player} plays {card_to_play}")
             winner = trick_winner([c for _, c in trick], leader, trump)
-            print(f"{winner} wins trick")
+            # print(f"{winner} wins trick")
             trick_winners.append(winner)
             leader = winner
         return trick_winners
@@ -145,7 +145,7 @@ class EuchreGame:
             self.team_scores[makers] += 1
         else:
             self.team_scores[1 - makers] += 2
-        print(f"score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
+        # print(f"score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
 
     def play_hand(self):
         self.deal_new_hand()
