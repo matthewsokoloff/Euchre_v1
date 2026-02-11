@@ -11,15 +11,19 @@ class ISMCTS:
 
     # player advancement
     def _advance_player(self, state):
-        for _ in range(4):
+        while True:
             state.current_player = (state.current_player + 1) % 4
 
-            # if alone, skip the lone maker's partner
-            if getattr(state, "alone", False):
-                maker = state.maker_index
-                team = state.makers_team
-                if state.current_player != maker and state.current_player % 2 == team:
-                    continue
+            if not getattr(state, "alone", False):
+                return
+
+            maker = state.maker_index
+            team = state.makers_team
+
+            # skip lone maker's partner
+            if state.current_player != maker and state.current_player % 2 == team:
+                continue
+
             return
 
     # ISMCTS entry point
@@ -34,7 +38,7 @@ class ISMCTS:
             # determinization
             state = copy.deepcopy(game.state) # copy the game state, randomizes opponents' hands but keeps real hand intact
 
-            deck = [c for h in state.hands for c in h if h is not None]
+            deck = [c for h in state.hands if h for c in h]
             random.shuffle(deck)
 
             for p in range(4):
@@ -139,7 +143,7 @@ class ISMCTS:
                 tricks_won[winner % 2] += 1
 
         my_team = perspective_player % 2
-        return 1 if tricks_won[my_team] >= 3 else 0
+        return tricks_won[my_team] - tricks_won[1 - my_team]
 
     # for testing
     def build_test_root(self, game, player, simulations_per_card=10):
