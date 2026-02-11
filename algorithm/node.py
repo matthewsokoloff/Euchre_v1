@@ -7,15 +7,22 @@ class ISMCTSNode:
         self.children = []
         self.visits = 0
         self.wins = 0
+        self.eligible_visits = 0 # how many times a move was legal
 
     def uct(self, total_visits, c = math.sqrt(2)):
         if self.visits == 0:
             return float("inf")
-        # below is a formula called upper confidence bound applied to trees
-        return (self.wins / self.visits) + c * math.sqrt(math.log(total_visits) / self.visits)
+        if self.parent is None:
+            total_eligible = self.eligible_visits if self.eligible_visits > 0 else 1
+        else:
+            total_eligible = self.eligible_visits if self.eligible_visits > 0 else 1
+        # below is a formula called upper confidence bound applied to trees, modified to fit the ISMCTS algorithm
+        # (modification: using total times a child node was eligible instead of total times it was visited)
+        return (self.wins / self.visits) + c * math.sqrt(math.log(total_eligible) / self.visits)
 
-    def best_child(self):
-        return max(self.children, key = lambda c: c.visits) # returns the child with the largest visit count
+    def best_child(self, c=math.sqrt(2)):
+        # select child with highest UCT value
+        return max(self.children, key=lambda child: child.uct(c))
 
     # manage moves
 

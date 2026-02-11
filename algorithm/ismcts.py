@@ -64,6 +64,12 @@ class ISMCTS:
 
                 # if our player, choose an untried move and expand the tree, or pick the best child node
                 if current == player:
+
+                    # increment eligible_visits for all children whose move is currently legal
+                    for child in node.children:
+                        if child.move in legal:
+                            child.eligible_visits += 1
+
                     untried = node.untried_moves(legal)
                     if untried:
                         move = random.choice(untried)
