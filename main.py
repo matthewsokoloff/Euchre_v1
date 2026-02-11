@@ -14,10 +14,10 @@ class TestEuchreGame(unittest.TestCase):
         player = 0
         hand = list(game.state.hands[player])
 
-        bot = ISMCTS(simulations=5000, debug=False)
+        bot = ISMCTS(simulations=1000, debug=False)
 
         # Build root node mid-game with mini-simulations
-        root = bot.build_test_root(game, player, simulations_per_card=2000)
+        root = bot.build_test_root(game, player, simulations_per_card=700)
 
         print(f"Player {player} hand: {[str(c) for c in hand]}")
         print("Estimated win rates for legal cards:")
