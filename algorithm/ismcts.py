@@ -92,7 +92,7 @@ class ISMCTS:
                     state.leader = winner
 
                 # stop after first expansion
-                if node.parent and node.visits == 0:
+                if current == player and node.visits == 0:
                     break
 
             # simulation of the rest of the game
