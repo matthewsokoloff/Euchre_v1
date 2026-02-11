@@ -1,19 +1,16 @@
 from .deck import Deck
 from .game_state import GameState
 from .card import Card, Suit, Rank
+from algorithm.ismcts import ISMCTS
 from .rules import (is_right_bower, is_left_bower, effective_suit, card_value, throw_junk, find_lowest_card, decide_move, sister_suit, trick_winner, find_worst_card, remove_worst_card, is_single_in_suit, num_void_suits, is_void_suit, hand_strength, cards_to_win_trick, legal_moves)
 
 class EuchreGame:
-    def __init__(self, human_player: int | None = None):
-        self.state = GameState(
-            hands=[[] for _ in range(4)],
-            dealer=3,  # first deal goes to player 0
-            trump=None,
-            trick=[],
-            scores=[0, 0],
-            current_player=0,
-            leader=0
-        )
+    def __init__(self, bot_types=None, human_player: int | None = None):
+        self.state = GameState(hands=[[] for _ in range(4)], dealer=3, trump=None, trick=[], scores=[0, 0], current_player=0, leader=0) # dealer = 3 sends first deal to player 0
+
+        self.bot_types = bot_types or ["heuristic"] * 4
+        self.ismcts_bot = ISMCTS(simulations=300)
+
         self.team_scores = [0, 0]
         self.human_player = human_player
         self.state.leader = self.state.current_player
@@ -62,7 +59,7 @@ class EuchreGame:
             return best_suit, alone
         else:
             if round_number == 3: # if the dealer is being stuck, force pick of the best suit
-                return best_suit
+                return best_suit, alone
             return None, False
 
     def do_bidding(self):
@@ -120,12 +117,15 @@ class EuchreGame:
                 if self.alone and player != self.maker_index and player % 2 == self.makers_team:
                     continue
                 hand = self.state.hands[player]
-                card_to_play = decide_move(hand, trick, trump, player % 2)
+                if self.bot_types[player] == "ismcts":
+                    card_to_play = self.ismcts_bot.choose_card(self, player)
+                else:
+                    card_to_play = decide_move(hand, trick, trump, player % 2)
                 hand.remove(card_to_play)
                 trick.append((player, card_to_play))
-                print(f"Player {player} plays {card_to_play}")
+                # print(f"{player} plays {card_to_play}")
             winner = trick_winner([c for _, c in trick], leader, trump)
-            print(f"Player {winner} wins the trick!")
+            print(f"{winner} wins trick")
             trick_winners.append(winner)
             leader = winner
         return trick_winners
@@ -145,7 +145,7 @@ class EuchreGame:
             self.team_scores[makers] += 1
         else:
             self.team_scores[1 - makers] += 2
-        print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
+        print(f"score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
 
     def play_hand(self):
         self.deal_new_hand()
