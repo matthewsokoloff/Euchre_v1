@@ -103,7 +103,7 @@ class EuchreGame:
                 self.maker_index = dealer
                 self.alone = alone
                 return # bidding done
-            print('error') # if it gets this far, something went wrong
+        raise RuntimeError("No trump selected during bidding! This should never happen.")
 
     def play_tricks(self):
         trump = self.state.trump
