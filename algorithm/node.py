@@ -8,7 +8,7 @@ class ISMCTSNode:
         self.visits = 0
         self.wins = 0
 
-    def uct(self, total_visits, c = 1.41):
+    def uct(self, total_visits, c = math.sqrt(2)):
         if self.visits == 0:
             return float("inf")
         # below is a formula called upper confidence bound applied to trees
