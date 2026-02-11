@@ -1,7 +1,6 @@
 import random
-import copy
 from algorithm.node import ISMCTSNode
-from game.rules import legal_moves, decide_move, trick_winner, effective_suit
+from game.rules import legal_moves, decide_move, trick_winner
 
 
 class ISMCTS:
@@ -26,17 +25,31 @@ class ISMCTS:
 
             return
 
-    # ISMCTS entry point
+    # entry point
     def choose_card(self, game, player):
-
         real_hand = list(game.state.hands[player])
         root = ISMCTSNode()
 
-        for _ in range(self.simulations):
-            # determinization
-            state = copy.deepcopy(game.state) # copy the game state, randomizes opponents' hands but keeps real hand intact
+        # precompute deck
+        full_deck = [c for h in game.state.hands if h for c in h]
 
-            deck = [c for h in state.hands if h for c in h]
+        for _ in range(self.simulations):
+            # shallow copy for speed
+            state = type(game.state)(
+                hands=[list(h) for h in game.state.hands],
+                dealer=game.state.dealer,
+                trump=game.state.trump,
+                trick=list(game.state.trick),
+                scores=list(game.state.scores),
+                current_player=game.state.current_player,
+                leader=game.state.leader
+            )
+            state.maker_index = getattr(game.state, "maker_index", None)
+            state.makers_team = getattr(game.state, "makers_team", None)
+            state.alone = getattr(game.state, "alone", False)
+
+            # determinization: shuffle unknown hands
+            deck = full_deck[:]
             random.shuffle(deck)
 
             for p in range(4):
@@ -46,26 +59,23 @@ class ISMCTS:
                     deck = deck[n:]
 
             state.hands[player] = list(real_hand)
-            state.trick = list(state.trick)
 
             # selection / expansion
             node = root
             steps = 0
-            # loop through moves til game end or 100 steps
             while any(state.hands) and steps < 100:
                 steps += 1
                 current = state.current_player
                 hand = state.hands[current]
-                # empty hand -> advance player
+
                 if not hand:
                     self._advance_player(state)
                     continue
+
                 legal = legal_moves(hand, state.trick, state.trump) or hand[:]
 
-                # if our player, choose an untried move and expand the tree, or pick the best child node
                 if current == player:
-
-                    # increment eligible_visits for all children whose move is currently legal
+                    # increment eligible_visits
                     for child in node.children:
                         if child.move in legal:
                             child.eligible_visits += 1
@@ -79,16 +89,15 @@ class ISMCTS:
                             break
                         node = node.best_child()
                         move = node.move
-                # if not our player, use heuristic instead of simulating moves
                 else:
                     move = decide_move(hand, state.trick, state.trump, player)
 
-                # apply the move
-                hand.remove(move)
+                # apply move (faster removal)
+                hand.pop(hand.index(move))
                 state.trick.append((current, move))
                 self._advance_player(state)
 
-                # Resolve trick if full
+                # resolve trick
                 if len(state.trick) == 4:
                     trick_cards = [c for _, c in state.trick]
                     winner_idx = trick_winner(trick_cards, state.leader, state.trump)
@@ -97,30 +106,29 @@ class ISMCTS:
                     state.current_player = winner
                     state.leader = winner
 
-                # stop after first expansion
                 if current == player and node.visits == 0:
                     break
 
-            # simulation of the rest of the game
+            # rollout
             reward = self._rollout(state, player)
 
-            # backpropagation (updates the statistics up the tree)
+            # backpropagation
             while node:
                 node.visits += 1
                 node.wins += reward
                 node = node.parent
 
-        # choose the final move
+        # choose best move
         best = max(root.children, key=lambda c: c.wins / c.visits)
         return next(c for c in real_hand if c.suit == best.move.suit and c.rank == best.move.rank)
 
-    # rollout
+    # rollout (faster, shorter)
     def _rollout(self, state, perspective_player):
         tricks_won = [0, 0]
         steps = 0
+        max_steps = 40  # short rollout limit
 
-        # loops until all players' hands are empty or 200 steps have passed (avoid infinite looping)
-        while any(state.hands) and steps < 200:
+        while any(state.hands) and steps < max_steps:
             steps += 1
             player = state.current_player
             hand = state.hands[player]
@@ -129,14 +137,11 @@ class ISMCTS:
                 self._advance_player(state)
                 continue
 
-            # decide the card using heuristics
             card = decide_move(hand, state.trick, state.trump, player)
-
-            hand.remove(card)
+            hand.pop(hand.index(card))
             state.trick.append((player, card))
             self._advance_player(state)
 
-            # trick resolution
             if len(state.trick) == 4:
                 trick_cards = [c for _, c in state.trick]
                 winner_idx = trick_winner(trick_cards, state.leader, state.trump)
