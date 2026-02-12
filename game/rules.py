@@ -269,23 +269,47 @@ def hand_strength(trump: Suit, hand: list['Card'], upcard: Card, dealer: bool):
     void_suits = num_void_suits(hand, trump)
 
     if dealer and upcard: # if there's an upcard, add upcard to hand and remove the worst card
+        hand = hand.copy()
         hand = remove_worst_card(hand, upcard, trump)
 
-    for i, card in enumerate(hand):
+    trump_cards = []
+    off_aces = 0
+
+    for card in hand:
         eff_suit = effective_suit(card, trump)
 
         if eff_suit == trump:
+            trump_cards.append(card)
+
             if is_right_bower(card, trump):
-                strength += 4
+                strength += 6
             elif is_left_bower(card, trump):
-                strength += 3
+                strength += 5
             elif card.rank == Rank.ACE:
-                strength += 2
+                strength += 3
             elif card.rank == Rank.KING:
+                strength += 2
+            elif card.rank == Rank.QUEEN:
                 strength += 1
-            else:
-                if void_suits > 0:
-                    strength += 1
-        elif card.rank == Rank.ACE:
-            strength += 1
+        else:
+            if card.rank == Rank.ACE:
+                off_aces += 1
+
+    # Trump count bonus
+    trump_count = len(trump_cards)
+
+    if trump_count >= 4:
+        strength += 4
+    elif trump_count == 3:
+        strength += 2
+    elif trump_count == 2:
+        strength += 1
+
+    # Off-ace bonus
+    strength += off_aces
+
+    # Void bonus
+    voids = num_void_suits(hand, trump)
+    strength += voids
+
     return strength

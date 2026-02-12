@@ -50,10 +50,15 @@ class EuchreGame:
                 best_suit = suit
 
         # Decide if player should go alone
-        alone = best_score >= 5  # simple loner heuristic
+        alone = best_score >= 14  # simple loner heuristic
 
         # Minimum strength required to pick a suit
-        min_strength = 4 if round_number == 1 else 3
+        if round_number == 1:
+            min_strength = 9
+        elif round_number == 2:
+            min_strength = 8
+        else:
+            min_strength = 7
 
         if best_score >= min_strength:
             return best_suit, alone
@@ -95,14 +100,14 @@ class EuchreGame:
                 self.alone = alone
                 return # bidding done
 
-            # if no one calls it, stick the dealer
-            suit, alone = self.choose_trump(self.state.hands[dealer], forbidden = self.state.upcard.suit, round_number = 3)
-            if suit:
-                self.state.trump = suit
-                self.makers_team = dealer % 2
-                self.maker_index = dealer
-                self.alone = alone
-                return # bidding done
+        # if no one calls it, stick the dealer
+        suit, alone = self.choose_trump(self.state.hands[dealer], forbidden = self.state.upcard.suit, round_number = 3)
+        if suit:
+            self.state.trump = suit
+            self.makers_team = dealer % 2
+            self.maker_index = dealer
+            self.alone = alone
+            return # bidding done
         raise RuntimeError("No trump selected during bidding! This should never happen.")
 
     def play_tricks(self):
@@ -161,24 +166,47 @@ class EuchreGame:
         if verbose:
             print("=== Starting Euchre Simulation ===")
 
-        while max(self.team_scores) < 10:  # a game plays to 10pts
+        hand_stats = {
+            "total_hands": 0,
+            "ismcts_calls": 0,
+            "ismcts_call_wins": 0,
+            "ismcts_call_euchred": 0,
+        }
+
+        while max(self.team_scores) < 10:
             self.deal_new_hand()
             self.do_bidding()
             if verbose:
                 print(f"\nTrump suit is {self.state.trump}\n")
 
-            # Play hand
+            hand_stats["total_hands"] += 1
+
             trick_winners = self.play_tricks()
+            makers = self.makers_team
+            maker_index = self.maker_index
+
+            # Count tricks
+            team_tricks = [0, 0]
+            for winner in trick_winners:
+                team_tricks[winner % 2] += 1
+
+            makers_tricks = team_tricks[makers]
+
+            # Check if ISMCTS called
+            if self.bot_types[maker_index] == "ismcts":
+                hand_stats["ismcts_calls"] += 1
+
+                if makers_tricks >= 3:
+                    hand_stats["ismcts_call_wins"] += 1
+                else:
+                    hand_stats["ismcts_call_euchred"] += 1
+
             self.score_hand(trick_winners)
             if verbose:
                 print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}\n")
 
+        winning_team = 0 if self.team_scores[0] > self.team_scores[1] else 1
         if verbose:
             print("=== Game Over ===")
 
-        if self.team_scores[0] > self.team_scores[1]:
-            winning_team = 0
-        else:
-            winning_team = 1
-
-        return self.team_scores, winning_team
+        return self.team_scores, winning_team, hand_stats
