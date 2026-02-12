@@ -60,6 +60,7 @@ def run_match(num_games=200, sims=200):
         call_win_rate = total_ismcts_call_wins / total_ismcts_calls
         euchre_rate = total_ismcts_call_euchred / total_ismcts_calls
         call_frequency = total_ismcts_calls / total_hands_played
+        print(f"call frequency: {call_frequency}")
 
         print(f"Total hands played: {total_hands_played}")
         print(f"Total times ISMCTS called trump: {total_ismcts_calls}")
@@ -68,7 +69,6 @@ def run_match(num_games=200, sims=200):
         print(f"Euchred rate when calling: {euchre_rate:.2%}")
     else:
         print("ISMCTS never called trump.")
-    print(f"call frequency: {call_frequency}")
 
 
 if __name__ == "__main__":
