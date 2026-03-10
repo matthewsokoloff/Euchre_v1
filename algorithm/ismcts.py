@@ -104,12 +104,6 @@ class ISMCTS:
 
         # choose best move
         best = max(root.children, key=lambda c: c.wins / c.visits)
-        if self.debug:
-            print("\n- ISMCTS thinking -")
-            for child in root.children:
-                wr = child.wins / child.visits if child.visits else 0
-                print(f"{child.move}: winrate={wr:.3f} visits={child.visits}")
-            print(f"Chosen move: {best.move}\n")
         return next(c for c in real_hand if c.suit == best.move.suit and c.rank == best.move.rank)
 
     # rollout with the copy retained
