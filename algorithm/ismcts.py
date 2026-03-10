@@ -107,27 +107,41 @@ class ISMCTS:
         if self.debug:
             print("\n[ISMCTS Debug]")
             print(f"Simulations run: {self.simulations}")
-            print("Move statistics:")
-            for child in root.children:
-                win_rate = child.wins / child.visits if child.visits > 0 else 0
-                print(
-                    f"  Move {child.move}: Wins={child.wins}, Visits={child.visits}, Eligible={child.eligible_visits}, Win rate={win_rate:.2f}")
-            print(f"Chosen move: {best.move} with win rate {best.wins / best.visits:.2f}")
 
-            # <-- insert the traversal path debug here
-            node = root
-            path = []
-            while node.children:
-                node = node.best_child()
-                path.append(node.move)
-            print("Traversal path in MCTS tree:", " -> ".join(str(m) for m in path))
+            if root.children:
+                print("Move statistics:")
+                for child in root.children:
+                    win_rate = child.wins / child.visits if child.visits > 0 else 0
+                    print(
+                        f"  Move {child.move}: "
+                        f"Wins={child.wins:.2f}, "
+                        f"Visits={child.visits}, "
+                        f"Eligible={child.eligible_visits}, "
+                        f"Win rate={win_rate:.2f}"
+                    )
+
+                best_win_rate = best.wins / best.visits if best.visits > 0 else 0
+                print(f"Chosen move: {best.move} with win rate {best_win_rate:.2f}")
+
+                # traversal path
+                node = root
+                path = []
+                while node.children:
+                    node = node.best_child()
+                    path.append(node.move)
+                if path:
+                    print("Traversal path in MCTS tree:", " -> ".join(str(m) for m in path))
+                else:
+                    print("Traversal path in MCTS tree: (no moves expanded)")
+            else:
+                print("No children nodes to display (early exit in MCTS).")
 
         # return the actual card from the real hand
         return next(c for c in real_hand if c.suit == best.move.suit and c.rank == best.move.rank)
 
     # rollout with the copy retained
     def _rollout(self, state, perspective_player):
-        tricks_won = [0, 0]
+        tricks_won = [0, 0]  # [team0, team1]
         steps = 0
         max_steps = 50  # cap rollout for speed
 
@@ -140,11 +154,13 @@ class ISMCTS:
                 self._advance_player(state)
                 continue
 
+            # Choose a card to play in rollout
             card = decide_move(hand, state.trick, state.trump, player)
             hand.remove(card)
             state.trick.append((player, card))
             self._advance_player(state)
 
+            # Resolve trick if full
             if len(state.trick) == 4:
                 trick_cards = [c for _, c in state.trick]
                 winner_idx = trick_winner(trick_cards, state.leader, state.trump)
@@ -154,5 +170,10 @@ class ISMCTS:
                 state.leader = winner
                 tricks_won[winner % 2] += 1
 
+        # Compute normalized reward
         my_team = perspective_player % 2
-        return tricks_won[my_team] - tricks_won[1 - my_team]
+        reward = (tricks_won[my_team] - tricks_won[1 - my_team]) / 5.0  # normalize to -1..1
+
+        # Safety clamp in case of edge cases
+        reward = max(-1.0, min(1.0, reward))
+        return reward
