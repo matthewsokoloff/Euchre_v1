@@ -5,11 +5,12 @@ from algorithm.ismcts import ISMCTS
 from .rules import (is_right_bower, is_left_bower, effective_suit, card_value, throw_junk, find_lowest_card, decide_move, sister_suit, trick_winner, find_worst_card, remove_worst_card, is_single_in_suit, num_void_suits, is_void_suit, hand_strength, cards_to_win_trick, legal_moves)
 
 class EuchreGame:
-    def __init__(self, bot_types=None, human_player: int | None = None):
+    def __init__(self, bot_types=None, human_player: int | None = None, debug=False):
         self.state = GameState(hands=[[] for _ in range(4)], dealer=3, trump=None, trick=[], scores=[0, 0], current_player=0, leader=0) # dealer = 3 sends first deal to player 0
 
         self.bot_types = bot_types or ["heuristic"] * 4
-        self.ismcts_bot = ISMCTS(simulations=300)
+        self.debug = debug
+        self.ismcts_bot = ISMCTS(simulations=300, debug=debug)
 
         self.team_scores = [0, 0]
         self.human_player = human_player
@@ -29,7 +30,6 @@ class EuchreGame:
         self.state.leader = self.state.current_player
         self.tricks_won = [0, 0]
         self.state.upcard = self.deck.deal(1)[0]
-        # print(f"The upcard is {self.state.upcard}")
 
     def choose_trump(self, hand: list[Card], forbidden: Suit | None = None, round_number: int = 1, upcard: Card | None = None, dealer: bool = False):
         # chooses trump

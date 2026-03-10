@@ -104,6 +104,25 @@ class ISMCTS:
 
         # choose best move
         best = max(root.children, key=lambda c: c.wins / c.visits)
+        if self.debug:
+            print("\n[ISMCTS Debug]")
+            print(f"Simulations run: {self.simulations}")
+            print("Move statistics:")
+            for child in root.children:
+                win_rate = child.wins / child.visits if child.visits > 0 else 0
+                print(
+                    f"  Move {child.move}: Wins={child.wins}, Visits={child.visits}, Eligible={child.eligible_visits}, Win rate={win_rate:.2f}")
+            print(f"Chosen move: {best.move} with win rate {best.wins / best.visits:.2f}")
+
+            # <-- insert the traversal path debug here
+            node = root
+            path = []
+            while node.children:
+                node = node.best_child()
+                path.append(node.move)
+            print("Traversal path in MCTS tree:", " -> ".join(str(m) for m in path))
+
+        # return the actual card from the real hand
         return next(c for c in real_hand if c.suit == best.move.suit and c.rank == best.move.rank)
 
     # rollout with the copy retained
