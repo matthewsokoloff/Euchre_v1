@@ -83,26 +83,7 @@ class EuchreGame:
         for i in range(4):
             player = (dealer + 1 + i) % 4
 
-            # HUMAN PLAYER
-            if player == self.human_player:
-                print(f"\nYour turn to bid. Upcard: {self.state.upcard}")
-                choice = input(f"Order up {self.state.upcard.suit}? (y/n): ").strip().lower()
-
-                if choice == "y":
-                    suit = self.state.upcard.suit
-                    alone = input("Go alone? (y/n): ").strip().lower() == "y"
-                    self.state.trump = suit
-                    self.makers_team = player % 2
-                    self.maker_index = player
-                    self.alone = alone
-                    print(f"You ordered up {suit}")
-                    return
-                else:
-                    print("You pass.")
-                    continue
-
-            # BOT PLAYER
-            suit, alone = self.choose_trump(self.state.hands[player],forbidden=None,round_number=1,upcard=self.state.upcard,dealer=(player == dealer))
+            suit, alone = self.choose_trump(self.state.hands[player], forbidden = None, round_number = 1, upcard = self.state.upcard, dealer = (player == dealer))
 
             # player orders up the upcard suit
             if suit == self.state.upcard.suit:
