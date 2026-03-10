@@ -76,137 +76,75 @@ class EuchreGame:
             return None, False
 
     def do_bidding(self):
+        # bidding for euchre hand using functions from rules.py
         dealer = self.state.dealer
-        upcard = self.state.upcard
-        print(f"Dealer: Player {dealer}")
-        print(f"Upcard: {upcard}")
 
-        # Show human hand
-        hand_str = ', '.join(str(c) for c in self.state.hands[self.human_player])
-        print(f"Your hand: {hand_str}")
-
-        # --- ROUND 1: bidding on upcard ---
+        # round 1 (bidding on upcard)
         for i in range(4):
             player = (dealer + 1 + i) % 4
 
+            # HUMAN PLAYER
             if player == self.human_player:
-                print(f"\nYour turn to bid. Upcard: {upcard}")
-                choice = input(f"Order up {upcard.suit.name}? (y/n): ").strip().lower()
+                print(f"\nYour turn to bid. Upcard: {self.state.upcard}")
+                choice = input(f"Order up {self.state.upcard.suit}? (y/n): ").strip().lower()
+
                 if choice == "y":
-                    suit = upcard.suit
+                    suit = self.state.upcard.suit
                     alone = input("Go alone? (y/n): ").strip().lower() == "y"
                     self.state.trump = suit
                     self.makers_team = player % 2
                     self.maker_index = player
                     self.alone = alone
-                    print(f"You ordered up {suit.name}")
-
-                    # Dealer must pick up the upcard
-                    if player == dealer:
-                        print(f"You must pick up the upcard: {upcard}")
-                        discard_choices = self.state.hands[player][:]
-                        discard = get_human_card_choice(self.state.hands[player], discard_choices)
-                        self.state.hands[player].remove(discard)
-                        self.state.hands[player].append(upcard)
-                        print(f"You picked up {upcard} and discarded {discard}")
+                    print(f"You ordered up {suit}")
                     return
                 else:
                     print("You pass.")
                     continue
 
-            # BOT players
-            suit, alone = self.choose_trump(
-                self.state.hands[player],
-                forbidden=None,
-                round_number=1,
-                upcard=upcard,
-                dealer=(player == dealer)
-            )
+            # BOT PLAYER
+            suit, alone = self.choose_trump(self.state.hands[player],forbidden=None,round_number=1,upcard=self.state.upcard,dealer=(player == dealer))
 
-            if suit == upcard.suit:
-                print(f"Player {player} orders up {suit.name}")
-                if alone:
-                    print(f"Player {player} goes alone!")
+            # player orders up the upcard suit
+            if suit == self.state.upcard.suit:
                 self.state.trump = suit
                 self.makers_team = player % 2
                 self.maker_index = player
                 self.alone = alone
+                print(f"Player {player} orders up {suit}")
+                if alone:
+                    print(f"Player {player} goes alone!")
 
-                # Dealer picks up upcard if needed
+                # dealer picks up upcard
                 if player == dealer:
-                    if player == self.human_player:
-                        discard_choices = self.state.hands[player][:]
-                        discard = get_human_card_choice(self.state.hands[player], discard_choices)
-                        self.state.hands[player].remove(discard)
-                        self.state.hands[player].append(upcard)
-                        print(f"You picked up {upcard} and discarded {discard}")
-                    else:
-                        self.state.hands[dealer] = remove_worst_card(self.state.hands[dealer], upcard, suit)
-                return
-            else:
-                print(f"Player {player} passes")
+                    self.state.hands[dealer] = remove_worst_card(self.state.hands[dealer], self.state.upcard, suit)
+                return # bidding done
 
-        # --- ROUND 2: calling a different suit ---
+        # round 2: if everyone passes on the upcard (trump can be called on any other suit)
         for i in range(4):
             player = (dealer + 1 + i) % 4
-
-            if player == self.human_player:
-                print(f"\nYour turn to call trump (cannot be {upcard.suit.name})")
-                choice = input("Call a suit? (or enter to pass): ").strip().upper()
-                if choice in [s.name for s in Suit if s != upcard.suit]:
-                    suit = Suit[choice]
-                    alone = input("Go alone? (y/n): ").strip().lower() == "y"
-                    self.state.trump = suit
-                    self.makers_team = player % 2
-                    self.maker_index = player
-                    self.alone = alone
-                    print(f"You called {suit.name}")
-                    if alone:
-                        print("You go alone!")
-                    return
-                else:
-                    print("You pass.")
-                    continue
-
-            suit, alone = self.choose_trump(
-                self.state.hands[player],
-                forbidden=upcard.suit,
-                round_number=2
-            )
+            suit, alone = self.choose_trump(self.state.hands[player], forbidden = self.state.upcard.suit, round_number = 2)
             if suit:
-                print(f"Player {player} calls {suit.name}")
-                if alone:
-                    print(f"Player {player} goes alone!")
                 self.state.trump = suit
                 self.makers_team = player % 2
                 self.maker_index = player
                 self.alone = alone
-                return
-            else:
-                print(f"Player {player} passes")
+                print(f"Player {player} calls {suit}")
+                if alone:
+                    print(f"Player {player} goes alone!")
+                return # bidding done
 
-        # --- ROUND 3: dealer forced to pick ---
-        suit, alone = self.choose_trump(
-            self.state.hands[dealer],
-            forbidden=upcard.suit,
-            round_number=3
-        )
-        self.state.trump = suit
-        self.makers_team = dealer % 2
-        self.maker_index = dealer
-        self.alone = alone
-
-        if dealer == self.human_player:
-            print(f"\nYou are stuck and must call {suit.name}")
-            discard_choices = self.state.hands[dealer][:]
-            discard = get_human_card_choice(self.state.hands[dealer], discard_choices)
-            self.state.hands[dealer].remove(discard)
-            self.state.hands[dealer].append(upcard)  # optional: dealer could pick up upcard if desired
-            print(f"You discarded {discard}")
-        else:
-            print(f"Dealer {dealer} is stuck and calls {suit.name}")
+        # if no one calls it, stick the dealer
+        suit, alone = self.choose_trump(self.state.hands[dealer], forbidden = self.state.upcard.suit, round_number = 3)
+        if suit:
+            self.state.trump = suit
+            self.makers_team = dealer % 2
+            self.maker_index = dealer
+            self.alone = alone
             if alone:
-                print(f"Player {dealer} goes alone!")
+                print(f"Dealer {dealer} is stuck and goes alone in {suit}")
+            else:
+                print(f"Dealer {dealer} is stuck and calls {suit}")
+            return # bidding done
         raise RuntimeError("No trump selected during bidding! This should never happen.")
 
     def play_tricks(self):
@@ -222,9 +160,24 @@ class EuchreGame:
                 if self.alone and player != self.maker_index and player % 2 == self.makers_team:
                     continue
                 hand = self.state.hands[player]
-                legal = legal_moves(hand, trick, trump)
                 if player == self.human_player:
-                    card_to_play = get_human_card_choice(hand, legal)
+                    legal = legal_moves(hand, trick, trump)
+                    print("\nYour turn")
+                    print("Hand:")
+                    for i, c in enumerate(hand):
+                        print(f"{i}: {c}")
+                    if trick:
+                        print("Current trick:", [str(c) for _, c in trick])
+                    print("Legal moves:", [str(c) for c in legal])
+                    while True:
+                        try:
+                            choice = int(input("Play card index: "))
+                            card_to_play = hand[choice]
+                            if card_to_play in legal:
+                                break
+                            print("Illegal move.")
+                        except:
+                            print("Invalid input.")
                 elif self.bot_types[player] == "ismcts":
                     print(f"\nPlayer {player} (ISMCTS) thinking...")
                     card_to_play = self.ismcts_bot.choose_card(self, player)
@@ -248,33 +201,21 @@ class EuchreGame:
         if self.alone:
             points = 4 if makers_tricks == 5 else 0
             self.team_scores[makers] += points
-            if points > 0:
-                print(f"Team {makers} scores {points} (alone!)")
-            else:
-                print(f"Team {1 - makers} euchres them for 2!")
         elif makers_tricks == 5:
             self.team_scores[makers] += 2
-            print(f"Team {makers} scores 2")
         elif makers_tricks >= 3:
             self.team_scores[makers] += 1
-            print(f"Team {makers} scores 1")
         else:
             self.team_scores[1 - makers] += 2
-        print(f"Score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
+        # print(f"score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
 
     def play_hand(self):
         self.deal_new_hand()
         self.do_bidding()
-        print(f"Trump is {self.state.trump.name}")
+        print(f"Trump is {self.state.trump}")
         if self.dev:
             for p, hand in enumerate(self.state.hands):
                 print(f"Player {p} hand: {', '.join(str(c) for c in hand)}")
-        else:
-            # show only player 0's hand
-            hand = self.state.hands[0]
-            print(f"Your hand: {', '.join(str(c) for c in hand)}")
-        # reset trick counts
-        self.tricks_won = [0, 0]
         trick_winners = self.play_tricks()
         self.score_hand(trick_winners)
 
@@ -327,22 +268,3 @@ class EuchreGame:
             print("=== Game Over ===")
 
         return self.team_scores, winning_team, hand_stats
-
-
-def get_human_card_choice(hand: list['Card'], legal_moves: list['Card']) -> 'Card':
-    # let human player pick a card from legal moves
-    print("Your turn")
-    print("Hand:")
-    for i, card in enumerate(hand):
-        print(f"{i}: {card}")
-    print(f"Cards you can play: {[str(c) for c in legal_moves]}")
-
-    while True:
-        try:
-            choice = int(input("Play card index: "))
-            if 0 <= choice < len(hand) and hand[choice] in legal_moves:
-                return hand[choice]
-            else:
-                print("Invalid choice. Must be a legal card from your hand.")
-        except ValueError:
-            print("Invalid input. Enter a number corresponding to your card index.")
