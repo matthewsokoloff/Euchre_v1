@@ -1,4 +1,5 @@
-import unittest
+from game.euchre_game import EuchreGame
+"""import unittest
 from game import euchre_game, rules
 from game.card import Card, Suit, Rank
 from game.euchre_game import EuchreGame
@@ -251,4 +252,16 @@ class TestEuchreGame(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main() """
+
+def main():
+
+    bots = ["human", "ismcts", "ismcts", "ismcts"]
+
+    game = EuchreGame(bot_types=bots, human_player=0)
+
+    game.play_game_human()
+
+
+if __name__ == "__main__":
+    main()

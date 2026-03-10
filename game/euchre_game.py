@@ -68,47 +68,99 @@ class EuchreGame:
             return None, False
 
     def do_bidding(self):
-        # bidding for euchre hand using functions from rules.py
         dealer = self.state.dealer
 
-        # round 1 (bidding on upcard)
+        print(f"\nUpcard: {self.state.upcard}")
+
+        # ROUND 1
         for i in range(4):
             player = (dealer + 1 + i) % 4
+            print(f"Player {player} bidding...")
 
-            suit, alone = self.choose_trump(self.state.hands[player], forbidden = None, round_number = 1, upcard = self.state.upcard, dealer = (player == dealer))
+            if player == self.human_player:
+                suit, alone = self.human_bid(player, 1)
 
-            # player orders up the upcard suit
+            else:
+                suit, alone = self.choose_trump(
+                    self.state.hands[player],
+                    round_number=1,
+                    upcard=self.state.upcard,
+                    dealer=(player == dealer),
+                )
+
             if suit == self.state.upcard.suit:
+                print(f"Player {player} orders it up!")
+
                 self.state.trump = suit
                 self.makers_team = player % 2
                 self.maker_index = player
                 self.alone = alone
 
-                # dealer picks up upcard
                 if player == dealer:
-                    self.state.hands[dealer] = remove_worst_card(self.state.hands[dealer], self.state.upcard, suit)
-                return # bidding done
 
-        # round 2: if everyone passes on the upcard (trump can be called on any other suit)
+                    if dealer == self.human_player:
+                        self.state.hands[dealer].append(self.state.upcard)
+                        self.human_discard(dealer)
+
+                    else:
+                        self.state.hands[dealer] = remove_worst_card(
+                            self.state.hands[dealer],
+                            self.state.upcard,
+                            suit,
+                        )
+
+                return
+            else:
+                print("Pass")
+
+        # ROUND 2
+        print("\nSecond round of bidding")
+
         for i in range(4):
             player = (dealer + 1 + i) % 4
-            suit, alone = self.choose_trump(self.state.hands[player], forbidden = self.state.upcard.suit, round_number = 2)
+            print(f"Player {player} bidding...")
+
+            if player == self.human_player:
+                suit, alone = self.human_bid(player, 2, forbidden=self.state.upcard.suit)
+
+            else:
+                suit, alone = self.choose_trump(
+                    self.state.hands[player],
+                    forbidden=self.state.upcard.suit,
+                    round_number=2,
+                )
+
             if suit:
+                print(f"Player {player} calls {suit}")
+
                 self.state.trump = suit
                 self.makers_team = player % 2
                 self.maker_index = player
                 self.alone = alone
-                return # bidding done
+                return
+            else:
+                print("Pass")
 
-        # if no one calls it, stick the dealer
-        suit, alone = self.choose_trump(self.state.hands[dealer], forbidden = self.state.upcard.suit, round_number = 3)
-        if suit:
-            self.state.trump = suit
-            self.makers_team = dealer % 2
-            self.maker_index = dealer
-            self.alone = alone
-            return # bidding done
-        raise RuntimeError("No trump selected during bidding! This should never happen.")
+        # Stick the dealer
+        print("\nDealer is stuck!")
+
+        dealer = self.state.dealer
+
+        if dealer == self.human_player:
+            suit, alone = self.human_bid(dealer, 2, forbidden=self.state.upcard.suit)
+        else:
+            suit, alone = self.choose_trump(
+                self.state.hands[dealer],
+                forbidden=self.state.upcard.suit,
+                round_number=3,
+            )
+
+        print(f"Dealer calls {suit}")
+
+        self.state.trump = suit
+        self.makers_team = dealer % 2
+        self.maker_index = dealer
+        self.alone = alone
 
     def play_tricks(self):
         trump = self.state.trump
@@ -210,3 +262,175 @@ class EuchreGame:
             print("=== Game Over ===")
 
         return self.team_scores, winning_team, hand_stats
+
+    def human_choose_card(self, player, trick):
+        hand = self.state.hands[player]
+        trump = self.state.trump
+
+        legal = legal_moves(hand, trick, trump)
+
+        print("\nYour hand:")
+        for i, c in enumerate(hand):
+            marker = ""
+            if c in legal:
+                marker = "(legal)"
+            print(f"{i}: {c} {marker}")
+
+        while True:
+            choice = input("Choose card index: ")
+
+            if not choice.isdigit():
+                print("Enter a number.")
+                continue
+
+            idx = int(choice)
+
+            if idx < 0 or idx >= len(hand):
+                print("Invalid index.")
+                continue
+
+            card = hand[idx]
+
+            if card not in legal:
+                print("You must follow suit.")
+                continue
+
+            return card
+
+    def play_tricks_human(self):
+        trump = self.state.trump
+        leader = (self.state.dealer + 1) % 4
+        trick_winners = []
+
+        for t in range(5):
+            print(f"\n=== Trick {t + 1} ===")
+
+            trick = []
+
+            for offset in range(4):
+                player = (leader + offset) % 4
+                self.state.current_player = player
+
+                if self.alone and player != self.maker_index and player % 2 == self.makers_team:
+                    continue
+
+                hand = self.state.hands[player]
+
+                if player == self.human_player:
+                    card = self.human_choose_card(player, trick)
+
+                elif self.bot_types[player] == "ismcts":
+                    card = self.ismcts_bot.choose_card(self, player)
+
+                else:
+                    card = decide_move(hand, trick, trump, player % 2)
+
+                hand.remove(card)
+                trick.append((player, card))
+                self.state.trick.append((player, card))
+
+                print(f"Player {player} plays {card}")
+
+            winner = trick_winner([c for _, c in trick], leader, trump)
+            self.state.trick.clear()
+            print(f"Player {winner} wins the trick")
+
+            trick_winners.append(winner)
+            leader = winner
+
+        return trick_winners
+
+    def play_game_human(self):
+        print("Starting Euchre!")
+
+        while max(self.team_scores) < 10:
+
+            self.deal_new_hand()
+
+            print("\n==========================")
+            print(f"Dealer: Player {self.state.dealer}")
+            print(f"Upcard: {self.state.upcard}")
+            print("==========================")
+
+            print("\nYour hand:")
+            for c in self.state.hands[self.human_player]:
+                print(c)
+
+            self.do_bidding()
+
+            print(f"\nTrump is {self.state.trump}")
+
+            trick_winners = self.play_tricks_human()
+
+            self.score_hand(trick_winners)
+
+            print("\nScore:")
+            print(f"Team 0: {self.team_scores[0]}")
+            print(f"Team 1: {self.team_scores[1]}")
+
+        winner = 0 if self.team_scores[0] > self.team_scores[1] else 1
+        print(f"\nTeam {winner} wins!")
+
+    def human_bid(self, player, round_number, forbidden=None):
+        print("\nYour hand:")
+        for c in self.state.hands[player]:
+            print(c)
+
+        if round_number == 1:
+            print(f"\nUpcard is {self.state.upcard}")
+            choice = input("Order it up? (y/n): ").lower()
+
+            if choice == "y":
+                alone = input("Go alone? (y/n): ").lower() == "y"
+                return self.state.upcard.suit, alone
+            return None, False
+
+        else:
+            print("\nCall a suit or pass.")
+            print("Options: hearts, diamonds, clubs, spades, pass")
+
+            while True:
+                choice = input("Your call: ").lower()
+
+                if choice == "pass":
+                    return None, False
+
+                suit_map = {
+                    "hearts": Suit.HEARTS,
+                    "diamonds": Suit.DIAMONDS,
+                    "clubs": Suit.CLUBS,
+                    "spades": Suit.SPADES,
+                }
+
+                if choice in suit_map:
+                    suit = suit_map[choice]
+
+                    if suit == forbidden:
+                        print("Cannot choose the upcard suit.")
+                        continue
+
+                    alone = input("Go alone? (y/n): ").lower() == "y"
+                    return suit, alone
+
+                print("Invalid input.")
+
+    def human_discard(self, dealer):
+        hand = self.state.hands[dealer]
+
+        print("\nYou picked up the upcard.")
+        print("Choose a card to discard:\n")
+
+        for i, c in enumerate(hand):
+            print(f"{i}: {c}")
+
+        while True:
+            choice = input("Discard index: ")
+
+            if not choice.isdigit():
+                continue
+
+            idx = int(choice)
+
+            if 0 <= idx < len(hand):
+                hand.pop(idx)
+                return
