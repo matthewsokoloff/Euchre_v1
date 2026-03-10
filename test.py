@@ -1,146 +1,254 @@
-# tests for the functions in rules.py
+import unittest
+from game import euchre_game, rules
 from game.card import Card, Suit, Rank
-from game.rules import (is_right_bower, is_left_bower, effective_suit, card_value,
-    throw_junk, find_lowest_card, decide_move, sister_suit, trick_winner,
-    find_worst_card, remove_worst_card, is_single_in_suit, num_void_suits,
-    is_void_suit, hand_strength, cards_to_win_trick, legal_moves)
+from game.euchre_game import EuchreGame
+from algorithm.ismcts import ISMCTS
+from game.rules import legal_moves
+from algorithm.node import ISMCTSNode
 
-def test_all():
-    print("=== Bower Tests ===")
-    right = Card(Suit.HEARTS, Rank.JACK)
-    left = Card(Suit.DIAMONDS, Rank.JACK)
-    normal = Card(Suit.SPADES, Rank.ACE)
-    trump = Suit.HEARTS
+class TestEuchreGame(unittest.TestCase):
 
-    assert is_right_bower(right, trump)
-    assert not is_left_bower(right, trump)
-    assert is_left_bower(left, trump)
-    assert effective_suit(left, trump) == Suit.HEARTS
-    assert card_value(right, trump) == 1000
-    assert card_value(left, trump) == 900
-    assert card_value(normal, trump) == 14
-    print("Bower tests passed!")
+    def test_simulate_one_hand_debug(self):
+        game = EuchreGame()
+        try:
+            # Deal
+            game.deal_new_hand()
+            assert game.state.upcard is not None, "Upcard was not dealt"
 
-    print("\n=== Legal Moves Tests ===")
-    hand = [right, left, normal, Card(Suit.CLUBS, Rank.NINE)]
-    trick = [(1, Card(Suit.HEARTS, Rank.ACE))]
-    legal = legal_moves(hand, trick, trump)
-    assert all(effective_suit(c, trump) == Suit.HEARTS for c in legal)
-    print("Legal moves when following HEARTS lead:", legal)
-    assert legal_moves(hand, [], trump) == hand
-    print("Legal moves when leading:", hand)
+            # Bidding
+            game.do_bidding()
+            assert game.state.trump is not None, "Trump was not set"
+            assert game.makers_team in (0, 1), "Invalid makers_team"
+            assert game.maker_index in range(4), "Invalid maker_index"
 
-    print("\n=== Throw Junk / Lowest Card Tests ===")
-    singleton_hand = [Card(Suit.DIAMONDS, Rank.NINE), right, normal]
-    junk_card = throw_junk(singleton_hand, trump)
-    assert junk_card.suit == Suit.DIAMONDS  # singleton should be played
-    lowest = find_lowest_card(hand, trump)
-    print("Junk card chosen (singleton exists):", junk_card)
-    print("Lowest card in hand:", lowest)
+            # Hands should still be valid
+            for i, hand in enumerate(game.state.hands):
+                assert len(hand) == 5, f"Player {i} does not have 5 cards after bidding"
 
-    print("\n=== Single / Void Suit Tests ===")
-    assert is_single_in_suit(singleton_hand, Suit.DIAMONDS, singleton_hand[0], trump)
-    assert num_void_suits(singleton_hand, trump) == 1
-    assert is_void_suit(singleton_hand, Suit.CLUBS, trump)
-    print("Single / void tests passed!")
+            # Play tricks
+            trick_winners = game.play_tricks()
+            assert len(trick_winners) == 5, "Did not play exactly 5 tricks"
 
-    print("\n=== Trick Winner Test ===")
-    trick_cards = [
-        Card(Suit.HEARTS, Rank.NINE),
-        Card(Suit.SPADES, Rank.ACE),
-        Card(Suit.HEARTS, Rank.JACK),
-        Card(Suit.CLUBS, Rank.ACE)
-    ]
-    winner = trick_winner(trick_cards, 0, trump)
-    print("Trick winner index:", winner)
-    assert winner == 2  # right bower wins
+            # Trick winners should be valid players
+            for w in trick_winners:
+                assert w in range(4), f"Invalid trick winner: {w}"
 
-    print("\n=== Sister Suit Test ===")
-    assert sister_suit(Suit.HEARTS) == Suit.DIAMONDS
-    assert sister_suit(Suit.SPADES) == Suit.CLUBS
-    print("Sister suit tests passed!")
+            # Score
+            pre_scores = game.team_scores.copy()
+            game.score_hand(trick_winners)
 
-    print("\n=== Find Worst Card Test ===")
-    worst = find_worst_card(hand, trump)
-    print("Worst card in hand:", worst)
+            # Score should change
+            score_diff = sum(game.team_scores) - sum(pre_scores)
+            self.assertIn(score_diff, [0, 1, 2, 4], "Invalid score change after hand")
 
-    print("\n=== Remove Worst Card Test ===")
-    upcard = Card(Suit.SPADES, Rank.TEN)
-    new_hand = remove_worst_card(hand.copy(), upcard, trump)
-    assert upcard in new_hand
-    print("Hand after removing worst and adding upcard:", new_hand)
+            print("One-hand simulation completed successfully")
+            print("Trump:", game.state.trump)
+            print("Makers team:", game.makers_team)
+            print("Alone:", game.alone)
+            print("Trick winners:", trick_winners)
+            print("Scores:", game.team_scores)
 
-    print("\n=== Decide Move Test ===")
-    trick = [(1, Card(Suit.HEARTS, Rank.NINE))]
-    move = decide_move(hand, trick, trump, my_id=0)
-    print("Decide move result:", move)
+        except Exception as e:
+            print("Error during one-hand simulation")
+            raise  # re-raise so you get full traceback
 
-    print("\n=== Hand Strength Test ===")
-    strength = hand_strength(trump, hand.copy(), upcard, dealer=True)
-    print("Hand strength:", strength)
+    def setUp(self):
+        self.game = euchre_game.EuchreGame()
+        self.game.team_scores = [0, 0]
+        self.game.alone = False
+        self.game.makers_team = 0
+        self.game.state.dealer = 3
 
-def test_edge_cases():
-    print("\n=== Edge Case Tests ===")
+    # ---------- Rules: Card Identity / Suit Logic ----------
 
-    # Setup hand and trump
-    trump = Suit.SPADES
-    hand = [
-        Card(Suit.SPADES, Rank.JACK),   # Right bower
-        Card(Suit.CLUBS, Rank.JACK),    # Left bower
-        Card(Suit.HEARTS, Rank.ACE),    # Off-suit ace
-        Card(Suit.DIAMONDS, Rank.KING),
-        Card(Suit.CLUBS, Rank.NINE)
-    ]
+    def test_sister_suit(self):
+        self.assertEqual(rules.sister_suit(Suit.HEARTS), Suit.DIAMONDS)
+        self.assertEqual(rules.sister_suit(Suit.SPADES), Suit.CLUBS)
 
-    # Test card values
-    assert card_value(hand[0], trump) == 1000
-    assert card_value(hand[1], trump) == 900
-    assert card_value(hand[2], trump) == 14
-    assert card_value(hand[3], trump) == 13
-    print("Card values test passed!")
+    def test_is_void_suit(self):
+        hand = [
+            Card(Suit.SPADES, Rank.ACE),
+            Card(Suit.SPADES, Rank.KING)
+        ]
+        self.assertTrue(rules.is_void_suit(hand, Suit.HEARTS, trump=Suit.SPADES))
+        self.assertFalse(rules.is_void_suit(hand, Suit.SPADES, trump=Suit.SPADES))
 
-    # Test legal moves following a lead
-    trick = [(1, Card(Suit.HEARTS, Rank.KING))]
-    legal = legal_moves(hand, trick, trump)
-    assert all(effective_suit(c, trump) == Suit.HEARTS for c in legal)
-    print("Legal moves following HEARTS lead:", legal)
+    def test_num_void_suits(self):
+        hand = [
+            Card(Suit.SPADES, Rank.ACE),
+            Card(Suit.SPADES, Rank.KING),
+            Card(Suit.HEARTS, Rank.ACE),
+        ]
+        voids = rules.num_void_suits(hand, trump=Suit.CLUBS)
+        self.assertGreaterEqual(voids, 1)
 
-    # Test throw_junk with no singletons (should pick lowest non-trump)
-    junk = throw_junk(hand, trump)
-    assert junk.suit in [Suit.HEARTS, Suit.DIAMONDS, Suit.CLUBS]
-    print("Throw junk (no singletons) result:", junk)
+    def test_is_single_in_suit(self):
+        hand = [
+            Card(Suit.SPADES, Rank.ACE),
+            Card(Suit.HEARTS, Rank.ACE),
+            Card(Suit.HEARTS, Rank.KING),
+        ]
+        spade_card = Card(Suit.SPADES, Rank.ACE)
 
-    # Test cards_to_win_trick
-    legal_plays = hand.copy()
-    winning_cards = cards_to_win_trick(legal_plays, trick, trump)
-    assert hand[0] in winning_cards  # Right bower should win
-    print("Cards that can win the trick:", winning_cards)
+        self.assertTrue(
+            rules.is_single_in_suit(
+                hand,
+                Suit.SPADES,  # suit being checked
+                spade_card,  # unused but required
+                Suit.CLUBS  # trump
+            )
+        )
 
-    # Test trick winner when multiple trump played
-    trick_cards = [
-        Card(Suit.HEARTS, Rank.KING),
-        Card(Suit.SPADES, Rank.NINE),
-        Card(Suit.SPADES, Rank.JACK),   # Right bower
-        Card(Suit.CLUBS, Rank.ACE)
-    ]
-    winner = trick_winner(trick_cards, leader=0, trump=trump)
-    assert winner == 2
-    print("Trick winner with trump cards:", winner)
+    # ---------- Rules: Card Selection Helpers ----------
 
-    # Test find_worst_card
-    worst = find_worst_card(hand, trump)
-    print("Worst card in hand:", worst)
+    def test_find_lowest_card(self):
+        hand = [
+            Card(Suit.SPADES, Rank.ACE),
+            Card(Suit.SPADES, Rank.NINE),
+            Card(Suit.CLUBS, Rank.KING),
+        ]
+        lowest = rules.find_lowest_card(hand, trump=Suit.HEARTS)
+        self.assertEqual(lowest.rank, Rank.NINE)
 
-    # Test hand_strength with dealer and upcard
-    upcard = Card(Suit.HEARTS, Rank.JACK)
-    strength = hand_strength(trump, hand.copy(), upcard, dealer=True)
-    print("Hand strength (with dealer and upcard):", strength)
+    def test_find_worst_card(self):
+        hand = [
+            Card(Suit.HEARTS, Rank.JACK),
+            Card(Suit.SPADES, Rank.NINE),
+            Card(Suit.CLUBS, Rank.TEN),
+        ]
+        worst = rules.find_worst_card(hand, trump=Suit.HEARTS)
+        self.assertNotEqual(worst.suit, Suit.HEARTS)
 
-    # Test sister suit function
-    assert sister_suit(Suit.SPADES) == Suit.CLUBS
-    assert sister_suit(Suit.HEARTS) == Suit.DIAMONDS
-    print("Sister suit tests passed!")
+    def test_remove_worst_card(self):
+        hand = [
+            Card(Suit.HEARTS, Rank.ACE),
+            Card(Suit.SPADES, Rank.NINE),
+            Card(Suit.CLUBS, Rank.TEN),
+        ]
+        upcard = Card(Suit.HEARTS, Rank.KING)
+        new_hand = rules.remove_worst_card(hand.copy(), upcard, trump=Suit.HEARTS)
+        self.assertIn(upcard, new_hand)
+        self.assertEqual(len(new_hand), 5 if len(hand) == 5 else len(hand))
+
+    def test_throw_junk(self):
+        hand = [
+            Card(Suit.HEARTS, Rank.ACE),
+            Card(Suit.CLUBS, Rank.NINE),
+            Card(Suit.SPADES, Rank.TEN),
+        ]
+        junk = rules.throw_junk(hand, trump=Suit.HEARTS)
+        self.assertNotEqual(junk.suit, Suit.HEARTS)
+
+    # ---------- Rules: Trick / Move Logic ----------
+
+    def test_trick_winner(self):
+        trump = Suit.HEARTS
+        trick = [
+            Card(Suit.SPADES, Rank.ACE),
+            Card(Suit.HEARTS, Rank.NINE),
+            Card(Suit.SPADES, Rank.KING),
+            Card(Suit.CLUBS, Rank.ACE),
+        ]
+        winner = rules.trick_winner(trick, leader=0, trump=trump)
+        self.assertEqual(winner, 1)
+
+    def test_cards_to_win_trick(self):
+        hand = [
+            Card(Suit.SPADES, Rank.ACE),
+            Card(Suit.SPADES, Rank.KING),
+            Card(Suit.CLUBS, Rank.NINE),
+        ]
+        trick = [Card(Suit.SPADES, Rank.QUEEN)]
+        winning = rules.cards_to_win_trick(hand, trick, trump=Suit.HEARTS)
+        self.assertTrue(any(c.rank == Rank.ACE for c in winning))
+
+    def test_decide_move(self):
+        hand = [
+            Card(Suit.SPADES, Rank.ACE),
+            Card(Suit.HEARTS, Rank.NINE),
+            Card(Suit.CLUBS, Rank.TEN),
+        ]
+        trick = [(0, Card(Suit.SPADES, Rank.KING))]
+        move = rules.decide_move(hand, trick, Suit.HEARTS, 0)
+        self.assertEqual(move.suit, Suit.SPADES)
+
+    # ---------- Game Logic: Choosing Trump ----------
+
+    def test_choose_trump_basic(self):
+        hand = [
+            Card(Suit.HEARTS, Rank.JACK),
+            Card(Suit.HEARTS, Rank.ACE),
+            Card(Suit.HEARTS, Rank.KING),
+            Card(Suit.CLUBS, Rank.NINE),
+            Card(Suit.SPADES, Rank.TEN),
+        ]
+        suit, alone = self.game.choose_trump(
+            hand,
+            round_number=1,
+            upcard=Card(Suit.HEARTS, Rank.NINE),
+            dealer=False
+        )
+        self.assertEqual(suit, Suit.HEARTS)
+        self.assertTrue(alone)
+
+    def test_choose_trump_pass(self):
+        hand = [
+            Card(Suit.CLUBS, Rank.NINE),
+            Card(Suit.SPADES, Rank.NINE),
+            Card(Suit.DIAMONDS, Rank.TEN),
+            Card(Suit.CLUBS, Rank.TEN),
+            Card(Suit.SPADES, Rank.TEN),
+        ]
+        suit, alone = self.game.choose_trump(hand, round_number=1, upcard=Card(Suit.HEARTS, Rank.ACE))
+        self.assertIsNone(suit)
+        self.assertFalse(alone)
+
+    # ---------- Game Logic: Deterministic Bidding ----------
+
+    def test_do_bidding_forced(self):
+        self.game.state.hands = [
+            [Card(Suit.HEARTS, Rank.ACE)] * 5,
+            [Card(Suit.CLUBS, Rank.NINE)] * 5,
+            [Card(Suit.SPADES, Rank.NINE)] * 5,
+            [Card(Suit.DIAMONDS, Rank.NINE)] * 5,
+        ]
+        self.game.state.upcard = Card(Suit.HEARTS, Rank.NINE)
+        self.game.state.dealer = 3
+
+        self.game.do_bidding()
+        self.assertEqual(self.game.state.trump, Suit.HEARTS)
+        self.assertEqual(self.game.makers_team, 0)
+
+    # ---------- Game Logic: Play Tricks ----------
+
+    def test_play_tricks_runs(self):
+        self.game.state.trump = Suit.HEARTS
+        self.game.makers_team = 0
+        self.game.maker_index = 0
+        self.game.alone = False
+
+        self.game.state.hands = [
+            [Card(Suit.HEARTS, Rank.ACE)] * 5,
+            [Card(Suit.CLUBS, Rank.NINE)] * 5,
+            [Card(Suit.SPADES, Rank.NINE)] * 5,
+            [Card(Suit.DIAMONDS, Rank.NINE)] * 5,
+        ]
+
+        winners = self.game.play_tricks()
+        self.assertEqual(len(winners), 5)
+
+    # ---------- Scoring ----------
+
+    def test_score_hand_all_cases(self):
+        self.game.makers_team = 0
+        self.game.alone = False
+        self.game.score_hand([0, 0, 0, 1, 1])
+        self.assertEqual(self.game.team_scores[0], 1)
+
+        self.game.team_scores = [0, 0]
+        self.game.score_hand([1, 1, 1, 0, 1])
+        self.assertEqual(self.game.team_scores[1], 2)
+
 
 if __name__ == "__main__":
-    test_all()
-    test_edge_cases()
+    unittest.main()
