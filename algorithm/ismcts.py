@@ -75,7 +75,7 @@ class ISMCTS:
                         node = node.best_child()
                         move = node.move
                 else:
-                    move = decide_move(hand, state.trick, state.trump, player)
+                    move = decide_move(hand, state.trick, state.trump, current)
 
                 # apply move
                 hand.remove(move)
