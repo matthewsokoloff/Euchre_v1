@@ -6,11 +6,27 @@ from .rules import (is_right_bower, is_left_bower, effective_suit, card_value, t
 
 class EuchreGame:
     def __init__(self, bot_types=None, human_player: int | None = None, debug=False):
+        """ Initializes a Euchre game instance.
+
+        Sets up the starting game state, bot configuration, scoring, and game tracking
+        variables used during play.
+
+        bot_types (list[str] | None): A list describing the type of
+            player for each seat (length 4). Examples include
+            "human", "heuristic", or "ismcts". If None, all players
+            default to heuristic bots.
+
+        human_player (int | None): The player index (0–3) that is
+            controlled by a human. If None, all players are bots.
+
+        debug (bool): If True, enables debugging output such as ISMCTS
+        stats and internal game information."""
+
         self.state = GameState(hands=[[] for _ in range(4)], dealer=3, trump=None, trick=[], scores=[0, 0], current_player=0, leader=0) # dealer = 3 sends first deal to player 0
 
         self.bot_types = bot_types or ["heuristic"] * 4
         self.debug = debug
-        self.ismcts_bot = ISMCTS(simulations=300, debug=debug)
+        self.ismcts_bot = ISMCTS(simulations=600, debug=debug)
 
         self.team_scores = [0, 0]
         self.human_player = human_player
@@ -21,6 +37,7 @@ class EuchreGame:
         self.tricks_won = [0, 0]
 
     def deal_new_hand(self):
+        """deals a new hand"""
         self.deck = Deck()
         self.deck.shuffle()
         self.state.hands = [self.deck.deal(5) for _ in range(4)]
@@ -32,8 +49,7 @@ class EuchreGame:
         self.state.upcard = self.deck.deal(1)[0]
 
     def choose_trump(self, hand: list[Card], forbidden: Suit | None = None, round_number: int = 1, upcard: Card | None = None, dealer: bool = False):
-        # chooses trump
-        # returns a tuple of the suit and the alone boolean
+        """chooses trump. returns a tuple of the suit and the alone boolean"""
         best_suit = None
         best_score = 0
 
@@ -68,6 +84,7 @@ class EuchreGame:
             return None, False
 
     def do_bidding(self):
+        """handles the bidding for both round one and two. prints"""
         dealer = self.state.dealer
 
         print(f"\nUpcard: {self.state.upcard}")
@@ -163,6 +180,7 @@ class EuchreGame:
         self.alone = alone
 
     def play_tricks(self):
+        """handles trick play. returns player number of the trick winners"""
         trump = self.state.trump
         leader = (self.state.dealer + 1) % 4
         trick_winners = []
@@ -188,6 +206,7 @@ class EuchreGame:
         return trick_winners
 
     def score_hand(self, tricks: list[int]):
+        """handles scoring. updates the score"""
         makers = self.makers_team
         team_tricks = [0, 0]
         for winner in tricks:
@@ -205,6 +224,7 @@ class EuchreGame:
         # print(f"score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
 
     def play_hand(self):
+        """plays a hand (5 tricks)"""
         self.deal_new_hand()
         self.do_bidding()
         print(f"Trump is {self.state.trump}")
@@ -214,7 +234,7 @@ class EuchreGame:
         self.score_hand(trick_winners)
 
     def sim_game(self, verbose: bool = False):
-        """Play a full game to 10 points. Returns final scores and winning team."""
+        """plays a full game to 10 points. returns final scores and winning team."""
         if verbose:
             print("=== Starting Euchre Simulation ===")
 
@@ -264,6 +284,7 @@ class EuchreGame:
         return self.team_scores, winning_team, hand_stats
 
     def human_choose_card(self, player, trick):
+        """handles choosing cards. returns the card the human chose"""
         hand = self.state.hands[player]
         trump = self.state.trump
 
@@ -298,6 +319,7 @@ class EuchreGame:
             return card
 
     def play_tricks_human(self):
+        """handles human playing tricks. returns the player number of the trick winners."""
         trump = self.state.trump
         leader = (self.state.dealer + 1) % 4
         trick_winners = []
@@ -341,6 +363,7 @@ class EuchreGame:
         return trick_winners
 
     def play_game_human(self):
+        """handles full gameplay"""
         print("Starting Euchre!")
 
         while max(self.team_scores) < 10:
@@ -372,6 +395,7 @@ class EuchreGame:
         print(f"\nTeam {winner} wins!")
 
     def human_bid(self, player, round_number, forbidden=None):
+        """allows the human player to bid and returns their choice"""
         print("\nYour hand:")
         for c in self.state.hands[player]:
             print(c)
@@ -415,6 +439,7 @@ class EuchreGame:
                 print("Invalid input.")
 
     def human_discard(self, dealer):
+        """allows the human player to discard. returns (nothing) when the human player has discarded."""
         hand = self.state.hands[dealer]
 
         print("\nYou picked up the upcard.")

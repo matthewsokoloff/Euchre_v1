@@ -6,11 +6,17 @@ from game.rules import legal_moves, decide_move, trick_winner
 
 class ISMCTS:
     def __init__(self, simulations=600, debug=False):
+        """Initialize the ISMCTS agent. simulations (int): Number of Information Set
+        Monte Carlo simulations to run when selecting a move. debug (bool): If True,
+        prints detailed debugging information about the MCTS tree and move statistics."""
         self.simulations = simulations
         self.debug = debug
 
     # player advancement
     def _advance_player(self, state):
+        """Advance the turn to the next valid player. Handles the special Euchre rule
+        where a player may go alone. If a player is going alone, their partner must be
+        skipped when advancing turns. state: The current simulated game state."""
         while True:
             state.current_player = (state.current_player + 1) % 4
             if not getattr(state, "alone", False):
@@ -25,6 +31,24 @@ class ISMCTS:
 
     # entry point
     def choose_card(self, game, player):
+        """ Returns the card from the real hand corresponding to the best move found by the search.
+        Select the best card to play using Information Set MCTS.
+
+        The algorithm performs repeated simulations of the game from the
+        current state. hidden/unknown information (opponent hands) is randomized
+        in each simulation (determinization). The tree tracks statistics
+        about moves available to the current player and uses those
+        statistics to choose the best action.
+
+        Steps:
+        1. copy current game state.
+        2. randomly assign hidden cards to opponents. (determinization)
+        3. run MCTS selection/expansion +  simulation + backpropagation.
+        4. choose move w/ best win rate.
+
+        game: the real game instance.
+        player (int): index of the current player."""
+
         real_hand = list(game.state.hands[player])
         root = ISMCTSNode()
 
@@ -141,6 +165,18 @@ class ISMCTS:
 
     # rollout with the copy retained
     def _rollout(self, state, perspective_player):
+        """ Returns a float of the normalized reward in the range [-1, 1]
+        Performs a random simulation (rollout) from the current state.
+
+        The rollout continues until either all cards are played or
+        the step limit of 50 is reached. During the rollout, players
+        choose random legal moves.
+
+        The result is converted into a normalized reward between
+        -1 and 1 from the perspective of the specified player.
+
+        state: simulated game state.
+        perspective_player (int): the player whose perspective the reward is calculated from."""
         tricks_won = [0, 0]  # [team0, team1]
         steps = 0
         max_steps = 50  # cap rollout for speed

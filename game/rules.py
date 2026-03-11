@@ -1,12 +1,14 @@
 import random
 from .card import Card, Suit, Rank
 
+
 def is_right_bower(card: Card, trump: Suit) -> bool:
-    # the right bower is the Jack of trump
+    """returns a boolean. the right bower is the jack of trump"""
     return card.rank == Rank.JACK and card.suit == trump
 
+
 def is_left_bower(card: Card, trump: Suit) -> bool:
-    # the left bower is the jack of the same color suit as trump
+    """returns a boolean. the left bower is the jack of the same color suit as trump"""
     if card.rank == Rank.JACK:
         if trump == Suit.HEARTS and card.suit == Suit.DIAMONDS:
             return True
@@ -18,18 +20,24 @@ def is_left_bower(card: Card, trump: Suit) -> bool:
             return True
     return False
 
+
 def effective_suit(card: Card, trump: Suit) -> Suit:
-    # Returns the suit the card acts as (accounts for left bower)
+    """Returns the suit the card acts as (accounts for left bower)"""
     if is_left_bower(card, trump):
         return trump
     return card.suit
 
+
 def card_value(card: Card, trump: Suit) -> int:
-    # returns val for a card
-    # right bower is 1000
-    # left bower is 900
-    # trump is the value + 100
-    # non trump is just the value of the card
+    """returns val for a card.
+
+    right bower is 1000.
+
+    left bower is 900.
+
+    trump is the value + 100.
+
+    non trump is just the value of the card"""
     value = card.rank.value
     eff_suit = effective_suit(card, trump)
     if is_right_bower(card, trump):
@@ -40,8 +48,9 @@ def card_value(card: Card, trump: Suit) -> int:
         value += 100
     return value
 
-def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card']:
-    # returns a list of cards the player can legally play.
+
+def legal_moves(hand: list['Card'], trick: list[tuple[int, 'Card']], trump: 'Suit') -> list['Card']:
+    """returns a list of cards the player can legally play."""
     if not trick:
         return hand[:]  # can lead anything
 
@@ -52,9 +61,11 @@ def legal_moves(hand: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit
     follow = [card for card in hand if effective_suit(card, trump) == lead_suit]
     return follow if follow else hand[:]
 
-def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']], trump: 'Suit') -> list['Card'] or None:
-    # returns a list of cards in the hand that will win a given trick
-    # if it returns None, no cards will win a given trick
+
+def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int, 'Card']], trump: 'Suit') -> list['Card'] or None:
+    """returns a list of cards in the hand that will win a given trick.
+
+    if it returns None, no cards will win a given trick"""
     card_list = legal_plays
     cards_to_win: list['Card'] = []
     current_max: int = -1
@@ -73,11 +84,13 @@ def cards_to_win_trick(legal_plays: list['Card'], trick: list[tuple[int,'Card']]
     # if not, return None
     return None
 
+
 def throw_junk(legal_plays: list['Card'], trump: 'Suit') -> 'Card':
-    # returns a junk card
-    # if there's a legal singleton, makes a void suit
-    # otherwise play the lowest card
-    # Check for singletons (auto-ensures it's not trump)
+    """returns the best junk card.
+
+    if there's a legal singleton, makes a void suit.
+
+    otherwise uses find_lowest_card to play the lowest card"""
     for card in legal_plays:
         if effective_suit(card, trump) != trump and is_single_in_suit(legal_plays, card.suit, card, trump):
             return card
@@ -85,8 +98,9 @@ def throw_junk(legal_plays: list['Card'], trump: 'Suit') -> 'Card':
     # Otherwise, return the lowest card
     return find_lowest_card(legal_plays, trump)
 
+
 def find_lowest_card(cards: list['Card'], trump) -> Card:
-    # returns the lowest card out of a list of cards
+    """returns the lowest card out of a list of cards"""
     minimum = 100000
     card_val = 0
     card_chosen: Card = cards[0]
@@ -98,7 +112,11 @@ def find_lowest_card(cards: list['Card'], trump) -> Card:
             card_chosen = card
     return card_chosen
 
+
 def decide_move(hand: list['Card'], trick: list[tuple[int, 'Card']], trump: 'Suit', my_id: int) -> Card:
+    """returns the best card to play based on current knowledge of the game (heuristic decision).
+
+    accounts for leading, partner winning, forced play, and winning with the lowest card."""
     # my_id is team id (player_id % 2)
 
     # get legal plays
@@ -132,7 +150,11 @@ def decide_move(hand: list['Card'], trick: list[tuple[int, 'Card']], trump: 'Sui
         return min(winning_moves, key=lambda c: card_value(c, trump))
     return find_worst_card(legal_plays, trump)
 
+
 def sister_suit(suit) -> Suit:
+    """returns the sister suit of the suit inputted (same color).\
+
+    for example, spades' sister suit is clubs."""
     if suit == Suit.SPADES:
         return Suit.CLUBS
     if suit == Suit.CLUBS:
@@ -142,8 +164,9 @@ def sister_suit(suit) -> Suit:
     if suit == Suit.DIAMONDS:
         return Suit.HEARTS
 
+
 def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
-    # returns index 0-3 of player who won trick
+    """returns index 0-3 of player who won trick"""
 
     lead_suit = effective_suit(trick[0], trump)
 
@@ -182,8 +205,9 @@ def trick_winner(trick: list[Card], leader: int, trump: Suit) -> int:
 
     return (leader + best_index) % 4
 
+
 def find_worst_card(hand: list['Card'], trump: Suit) -> Card:
-    # returns the worst card in a hand (probably a card that should be discarded or thrown as junk)
+    """returns the worst card in a hand"""
     lowest_rank = 1000
     worst_card = hand[0]
 
@@ -221,15 +245,17 @@ def find_worst_card(hand: list['Card'], trump: Suit) -> Card:
 
     return worst_card
 
+
 def remove_worst_card(hand: list['Card'], upcard: Card, trump: Suit) -> list['Card']:
-    # returns the hand with the upcard, having removed the worst card
+    """returns the hand with the upcard, having removed the worst card"""
     worst_card = find_worst_card(hand, trump)
     hand.remove(worst_card)
     hand.append(upcard)
     return hand
 
+
 def is_single_in_suit(hand: list['Card'], suit: Suit, card: Card, trump: Suit) -> bool:
-    # returns a boolean for whether a card in a hand is the only one in the suit or not
+    """returns a boolean for whether a card in a hand is the only one in the suit or not"""
 
     count_in_suit = 0
 
@@ -241,34 +267,37 @@ def is_single_in_suit(hand: list['Card'], suit: Suit, card: Card, trump: Suit) -
         return True
     return False
 
+
 def num_void_suits(hand: list['Card'], trump) -> int:
-    # returns the number of void suits in a hand (not counting trump, so a max of 3)
+    """returns the number of void suits in a hand (not counting trump, so a max of 3)"""
     void_count = 0
-    if trump!= Suit.SPADES and is_void_suit(hand, Suit.SPADES, trump):
+    if trump != Suit.SPADES and is_void_suit(hand, Suit.SPADES, trump):
         void_count += 1
-    if trump!= Suit.CLUBS and is_void_suit(hand, Suit.CLUBS, trump):
+    if trump != Suit.CLUBS and is_void_suit(hand, Suit.CLUBS, trump):
         void_count += 1
-    if trump!= Suit.HEARTS and is_void_suit(hand, Suit.HEARTS, trump):
+    if trump != Suit.HEARTS and is_void_suit(hand, Suit.HEARTS, trump):
         void_count += 1
-    if trump!= Suit.DIAMONDS and is_void_suit(hand, Suit.DIAMONDS, trump):
+    if trump != Suit.DIAMONDS and is_void_suit(hand, Suit.DIAMONDS, trump):
         void_count += 1
     return void_count
 
+
 def is_void_suit(hand: list['Card'], suit: Suit, trump: Suit) -> bool:
-    # returns whether a hand is void in a given suit
+    """returns whether a hand is void in a given suit"""
     for card in hand:
         eff_suit = effective_suit(card, trump)
         if eff_suit == suit:
             return False
     return True
 
+
 def hand_strength(trump: Suit, hand: list['Card'], upcard: Card, dealer: bool):
-    # returns a numeric value for the strength of a hand for a given trump
+    """returns a numeric value for the strength of a hand for a given trump"""
     strength = 0
 
     void_suits = num_void_suits(hand, trump)
 
-    if dealer and upcard: # if there's an upcard, add upcard to hand and remove the worst card
+    if dealer and upcard:  # if there's an upcard, add upcard to hand and remove the worst card
         hand = hand.copy()
         hand = remove_worst_card(hand, upcard, trump)
 
