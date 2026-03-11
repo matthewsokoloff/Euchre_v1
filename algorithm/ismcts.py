@@ -5,7 +5,7 @@ from game.rules import legal_moves, decide_move, trick_winner
 
 
 class ISMCTS:
-    def __init__(self, simulations=300, debug=False):
+    def __init__(self, simulations=600, debug=False):
         self.simulations = simulations
         self.debug = debug
 
@@ -155,7 +155,8 @@ class ISMCTS:
                 continue
 
             # Choose a card to play in rollout
-            card = decide_move(hand, state.trick, state.trump, player)
+            legal = legal_moves(hand, state.trick, state.trump)
+            card = random.choice(legal)
             hand.remove(card)
             state.trick.append((player, card))
             self._advance_player(state)
