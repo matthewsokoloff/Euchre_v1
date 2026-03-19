@@ -72,4 +72,4 @@ def run_match(num_games=200, sims=200):
 
 
 if __name__ == "__main__":
-    run_match(num_games=100, sims=500)
+    run_match(num_games=100, sims=1000)
