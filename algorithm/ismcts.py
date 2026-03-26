@@ -2,6 +2,7 @@ import random
 import copy
 from algorithm.node import ISMCTSNode
 from game.rules import legal_moves, decide_move, trick_winner
+from game.card import Card, Suit, Rank
 
 
 class ISMCTS:
@@ -60,13 +61,37 @@ class ISMCTS:
             state.alone = getattr(game.state, "alone", False)
 
             # determinization: shuffle unknown hands
-            full_deck = [c for h in state.hands if h for c in h]
+            # --- Build full Euchre deck ---
+            ALL_CARDS = [
+                Card(suit, rank)
+                for suit in [Suit.HEARTS, Suit.DIAMONDS, Suit.CLUBS, Suit.SPADES]
+                for rank in [Rank.NINE, Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING, Rank.ACE]
+            ]
+
+            # --- Collect known cards (what we are allowed to know) ---
+            known_cards = set(real_hand)
+
+            # cards already played in current trick
+            known_cards.update(card for _, card in state.trick)
+
+            # OPTIONAL: if your game tracks upcard / discard, include them here
+            # example:
+            # if hasattr(state, "upcard") and state.upcard:
+            #     known_cards.add(state.upcard)
+
+            # --- Build unknown pool (this now correctly includes the kitty) ---
+            full_deck = [c for c in ALL_CARDS if c not in known_cards]
+
             random.shuffle(full_deck)
+
+            # --- Reassign opponent hands ---
             for p in range(4):
                 if p != player:
                     n = len(state.hands[p])
                     state.hands[p] = full_deck[:n]
                     full_deck = full_deck[n:]
+
+            # --- Restore our real hand ---
             state.hands[player] = list(real_hand)
 
             node = root
