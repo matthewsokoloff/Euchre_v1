@@ -2,6 +2,7 @@ from game.euchre_game import EuchreGame
 
 def main():
     # Ask the user for mode
+    print("Starting. If you don't type \"dev\" exactly, the mode will be normal.")
     mode = input("Enter mode (dev or normal): ").strip().lower()
 
     # Define bot types
