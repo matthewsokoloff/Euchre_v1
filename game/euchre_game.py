@@ -98,12 +98,7 @@ class EuchreGame:
                 suit, alone = self.human_bid(player, 1)
 
             else:
-                suit, alone = self.choose_trump(
-                    self.state.hands[player],
-                    round_number=1,
-                    upcard=self.state.upcard,
-                    dealer=(player == dealer),
-                )
+                suit, alone = self.choose_trump(self.state.hands[player], round_number=1, upcard=self.state.upcard, dealer=(player == dealer),)
 
             if suit == self.state.upcard.suit:
                 print(f"Player {player} orders it up!")
@@ -118,14 +113,8 @@ class EuchreGame:
                     if dealer == self.human_player:
                         self.state.hands[dealer].append(self.state.upcard)
                         self.human_discard(dealer)
-
                     else:
-                        self.state.hands[dealer] = remove_worst_card(
-                            self.state.hands[dealer],
-                            self.state.upcard,
-                            suit,
-                        )
-
+                        self.state.hands[dealer] = remove_worst_card(self.state.hands[dealer], self.state.upcard,suit,)
                 return
             else:
                 print("Pass")
@@ -198,9 +187,7 @@ class EuchreGame:
                     card_to_play = decide_move(hand, trick, trump, player % 2)
                 hand.remove(card_to_play)
                 trick.append((player, card_to_play))
-                # print(f"{player} plays {card_to_play}")
             winner = trick_winner([c for _, c in trick], leader, trump)
-            # print(f"{winner} wins trick")
             trick_winners.append(winner)
             leader = winner
         return trick_winners
@@ -221,7 +208,6 @@ class EuchreGame:
             self.team_scores[makers] += 1
         else:
             self.team_scores[1 - makers] += 2
-        # print(f"score: Team 0 = {self.team_scores[0]}, Team 1 = {self.team_scores[1]}")
 
     def play_hand(self):
         """plays a hand (5 tricks)"""
