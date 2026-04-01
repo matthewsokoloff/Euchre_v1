@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Euchre</title>
+  <style>
+    /* ── reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #1a5c2f;
+      color: #fff;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── welcome screen ── */
+    #welcome {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      text-align: center;
+      padding: 24px;
+    }
+    #welcome h1 { font-size: clamp(36px, 8vw, 60px); color: #ffd700; }
+    #welcome p  { max-width: 380px; color: rgba(255,255,255,.8); line-height: 1.5; }
+
+    /* ── game wrapper ── */
+    #game {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      max-width: 680px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── header bar ── */
+    #hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 8px 14px;
+      background: rgba(0,0,0,.35);
+      font-size: 13px;
+    }
+    #hdr-trump { color: #ffd700; font-weight: bold; }
+    #hdr-dealer { color: rgba(255,255,255,.6); }
+
+    /* ── table layout ── */
+    #table {
+      flex: 1;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 10px 12px;
+      gap: 8px;
+    }
+
+    /* ── player areas ── */
+    .parea {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .plabel {
+      font-size: 11px;
+      color: rgba(255,255,255,.6);
+      letter-spacing: .5px;
+    }
+    .cards-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    /* ── middle row ── */
+    #mid {
+      display: grid;
+      grid-template-columns: 72px 1fr 72px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* ── trick grid ── */
+    #trick {
+      display: grid;
+      grid-template-areas:
+        ".   top  ."
+        "lft mid  rgt"
+        ".   bot  .";
+      grid-template-columns: 60px 60px 60px;
+      grid-template-rows:    88px 88px 88px;
+      gap: 4px;
+      justify-self: center;
+    }
+    #trick .tslot         { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    #trick .tslot .tlbl   { font-size:9px; color:rgba(255,255,255,.5); }
+    #trick-top  { grid-area: top; }
+    #trick-lft  { grid-area: lft; }
+    #trick-mid  { grid-area: mid; /* empty centre */ }
+    #trick-rgt  { grid-area: rgt; }
+    #trick-bot  { grid-area: bot; }
+
+    /* ── cards ── */
+    .card {
+      width: 52px;
+      height: 76px;
+      background: #fff;
+      border: 1.5px solid #bbb;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 1px 2px 4px rgba(0,0,0,.35);
+      font-size: 12px;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .card.red   { color: #c62828; }
+    .card.black { color: #111; }
+
+    .card .ctop {
+      position: absolute; top: 3px; left: 4px;
+      font-size: 10px; font-weight: 700; line-height: 1.2; text-align: center;
+    }
+    .card .cbot {
+      position: absolute; bottom: 3px; right: 4px;
+      font-size: 10px; font-weight: 700; line-height: 1.2; text-align: center;
+      transform: rotate(180deg);
+    }
+    .card .csym { font-size: 22px; }
+
+    /* face-down (back) */
+    .card.back {
+      background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+      border-color: #0d47a1;
+    }
+    .card.back::after {
+      content: '';
+      width: 36px; height: 56px;
+      border: 1.5px solid rgba(255,255,255,.25);
+      border-radius: 3px;
+      background: repeating-linear-gradient(
+        45deg, transparent, transparent 3px,
+        rgba(255,255,255,.08) 3px, rgba(255,255,255,.08) 6px
+      );
+    }
+
+    /* empty placeholder */
+    .card.empty {
+      background: rgba(255,255,255,.08);
+      border: 2px dashed rgba(255,255,255,.18);
+      box-shadow: none;
+    }
+
+    /* playable highlight */
+    .card.legal {
+      cursor: pointer;
+      border-color: #66bb6a;
+      box-shadow: 0 0 7px #66bb6a, 1px 2px 4px rgba(0,0,0,.35);
+    }
+    .card.legal:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 0 14px #66bb6a, 1px 6px 10px rgba(0,0,0,.4);
+      transition: transform .12s, box-shadow .12s;
+    }
+
+    /* ── controls ── */
+    #ctrl {
+      padding: 10px 14px;
+      background: rgba(0,0,0,.3);
+      min-height: 72px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .ctrl-title { font-size: 14px; font-weight: bold; color: #ffd700; }
+    .btn-row    { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+    button {
+      padding: 7px 18px;
+      border: none; border-radius: 6px;
+      cursor: pointer; font-size: 13px; font-weight: bold;
+      transition: opacity .15s, transform .1s;
+    }
+    button:hover  { opacity: .88; }
+    button:active { transform: scale(.96); }
+
+    .btn-green  { background: #43a047; color: #fff; }
+    .btn-gray   { background: #607d8b; color: #fff; }
+    .btn-gold   { background: #fdd835; color: #111; }
+    .btn-red    { background: #e53935; color: #fff; }
+    .btn-dark   { background: #263238; color: #fff; }
+    .btn-blue   { background: #1565c0; color: #fff; }
+
+    /* ── message log ── */
+    #msgs {
+      padding: 6px 14px;
+      background: rgba(0,0,0,.22);
+      max-height: 90px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .msg { padding: 1px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .msg.err { color: #ef9a9a; }
+
+    /* ── loading overlay ── */
+    #spinner {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      align-items: center; justify-content: center;
+      font-size: 18px; z-index: 999;
+    }
+    #spinner.on { display: flex; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════ WELCOME ══════════════════════════════ -->
+<div id="welcome">
+  <h1>🃏 Euchre</h1>
+  <p>
+    Play Euchre against three AI opponents powered by the ISMCTS algorithm.<br><br>
+    <strong>Teams:</strong> You &amp; Player 2 vs Player 1 &amp; Player 3.<br>
+    First team to <strong>10 points</strong> wins!
+  </p>
+  <button class="btn-gold" style="font-size:18px;padding:13px 34px"
+          onclick="newGame()">Start Game</button>
+</div>
+
+<!-- ═══════════════════════════════════ GAME ════════════════════════════════ -->
+<div id="game">
+
+  <!-- header -->
+  <div id="hdr">
+    <div id="hdr-scores">Team 0: 0  |  Team 1: 0</div>
+    <div id="hdr-trump">Trump: —</div>
+    <div id="hdr-dealer">Dealer: —</div>
+  </div>
+
+  <!-- table -->
+  <div id="table">
+
+    <!-- top: Player 2 (partner) -->
+    <div class="parea">
+      <div class="plabel">Player 2 — Your Partner</div>
+      <div class="cards-row" id="h2"></div>
+    </div>
+
+    <!-- middle row -->
+    <div id="mid">
+      <!-- left: Player 1 -->
+      <div class="parea">
+        <div class="plabel">Player 1</div>
+        <div class="cards-row" id="h1"></div>
+      </div>
+
+      <!-- trick area (diamond layout) -->
+      <div id="trick">
+        <div class="tslot" id="trick-top">
+          <div class="tlbl">P2</div>
+          <div id="tc2"></div>
+        </div>
+        <div class="tslot" id="trick-lft">
+          <div class="tlbl">P1</div>
+          <div id="tc1"></div>
+        </div>
+        <div id="trick-mid"><!-- empty centre --></div>
+        <div class="tslot" id="trick-rgt">
+          <div class="tlbl">P3</div>
+          <div id="tc3"></div>
+        </div>
+        <div class="tslot" id="trick-bot">
+          <div class="tlbl">You</div>
+          <div id="tc0"></div>
+        </div>
+      </div>
+
+      <!-- right: Player 3 -->
+      <div class="parea">
+        <div class="plabel">Player 3</div>
+        <div class="cards-row" id="h3"></div>
+      </div>
+    </div>
+
+    <!-- bottom: human hand -->
+    <div class="parea">
+      <div class="plabel">Your Hand — Player 0</div>
+      <div class="cards-row" id="h0"></div>
+    </div>
+
+  </div><!-- /table -->
+
+  <!-- controls -->
+  <div id="ctrl"><div class="ctrl-title">Loading…</div></div>
+
+  <!-- messages -->
+  <div id="msgs"></div>
+
+</div><!-- /game -->
+
+<div id="spinner">⏳ Thinking…</div>
+
+<!-- ════════════════════════════════ JAVASCRIPT ══════════════════════════════ -->
+<script>
+'use strict';
+
+// ── constants ──────────────────────────────────────────────────────────────
+const API   = '/api/game';
+const SYMS  = { S:'♠', H:'♥', D:'♦', C:'♣' };
+const RANKS = { 9:'9', 10:'10', 11:'J', 12:'Q', 13:'K', 14:'A' };
+const SNAME = { H:'Hearts', D:'Diamonds', C:'Clubs', S:'Spades' };
+const RED   = new Set(['H','D']);
+
+// ── state ──────────────────────────────────────────────────────────────────
+let gs   = null;   // gameState
+let lc   = null;   // legal card indices
+
+// ── API call ───────────────────────────────────────────────────────────────
+async function send(action, extra = {}) {
+  document.getElementById('spinner').classList.add('on');
+  try {
+    const body = { action, ...extra };
+    if (gs) body.state = gs;
+    const res  = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.error) {
+      log('⚠️ ' + data.error, true);
+      if (data.state) { gs = data.state; lc = data.legal_cards; render(); }
+    } else {
+      gs = data.state;
+      lc = data.legal_cards;
+      (data.messages || []).forEach(m => log(m));
+      render();
+    }
+  } catch (e) {
+    log('⚠️ Network error: ' + e.message, true);
+  } finally {
+    document.getElementById('spinner').classList.remove('on');
+  }
+}
+
+// ── log ────────────────────────────────────────────────────────────────────
+function log(text, isErr = false) {
+  const box  = document.getElementById('msgs');
+  const item = document.createElement('div');
+  item.className = 'msg' + (isErr ? ' err' : '');
+  item.textContent = text;
+  box.prepend(item);
+  while (box.children.length > 24) box.removeChild(box.lastChild);
+}
+
+// ── card element factory ───────────────────────────────────────────────────
+function mkCard(card, opts = {}) {
+  const el = document.createElement('div');
+  if (opts.back) { el.className = 'card back'; return el; }
+  if (!card)     { el.className = 'card empty'; return el; }
+
+  const sym   = SYMS[card.suit];
+  const rank  = RANKS[card.rank];
+  const isRed = RED.has(card.suit);
+
+  el.className = `card ${isRed ? 'red' : 'black'}${opts.legal ? ' legal' : ''}`;
+  el.innerHTML =
+    `<div class="ctop">${rank}<br>${sym}</div>` +
+    `<div class="csym">${sym}</div>` +
+    `<div class="cbot">${rank}<br>${sym}</div>`;
+
+  if (opts.legal && opts.onClick) {
+    el.addEventListener('click', opts.onClick);
+  }
+  return el;
+}
+
+// ── render helpers ─────────────────────────────────────────────────────────
+function renderBotHand(id, hand) {
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  (hand || []).forEach(() => el.appendChild(mkCard(null, { back: true })));
+}
+
+function renderHumanHand(hand, legal, onClickFn) {
+  const el = document.getElementById('h0');
+  el.innerHTML = '';
+  (hand || []).forEach((card, idx) => {
+    const isLegal = legal && legal.includes(idx);
+    el.appendChild(mkCard(card, {
+      legal:   isLegal,
+      onClick: isLegal && onClickFn ? () => onClickFn(idx) : null,
+    }));
+  });
+}
+
+function renderTrick(trick) {
+  [0,1,2,3].forEach(p => {
+    const el = document.getElementById('tc'+p);
+    el.innerHTML = '';
+    el.appendChild(mkCard(null));          // default: empty placeholder
+  });
+  (trick || []).forEach(([p, card]) => {
+    const el = document.getElementById('tc'+p);
+    el.innerHTML = '';
+    el.appendChild(mkCard(card));
+  });
+}
+
+// ── controls ───────────────────────────────────────────────────────────────
+function renderCtrl(state) {
+  const box   = document.getElementById('ctrl');
+  box.innerHTML = '';
+  const phase = state.phase;
+
+  const isStuck =
+    state.bid_round === 2 &&
+    state.bid_pos   === 3 &&
+    state.dealer    === 0;          // human is always player 0
+
+  if (phase === 'bidding') {
+    if (state.bid_round === 1) {
+      const uc    = state.upcard;
+      const uname = uc ? RANKS[uc.rank] + SYMS[uc.suit] : '?';
+      const ucol  = uc && RED.has(uc.suit) ? '#ff8a80' : '#fff';
+      box.innerHTML =
+        `<div class="ctrl-title">Round 1 Bidding</div>
+         <div style="font-size:13px">
+           Upcard: <strong style="color:${ucol}">${uname}</strong> — Order it up?
+         </div>`;
+      const row = Object.assign(document.createElement('div'), { className: 'btn-row' });
+      row.appendChild(btn('Order Up', 'btn-green', () => send('bid', { order_up: true, alone: false })));
+      row.appendChild(btn('Pass',     'btn-gray',  () => send('bid', { order_up: false })));
+      box.appendChild(row);
+
+    } else {
+      const forbidden = state.upcard ? state.upcard.suit : null;
+      box.innerHTML = `<div class="ctrl-title">${
+        isStuck ? "You're stuck — must call a suit!" : 'Round 2 — Call a suit or Pass'
+      }</div>`;
+      const row = Object.assign(document.createElement('div'), { className: 'btn-row' });
+      ['H','D','C','S'].forEach(s => {
+        if (s === forbidden) return;
+        const cls = RED.has(s) ? 'btn-red' : 'btn-dark';
+        row.appendChild(btn(SYMS[s]+' '+SNAME[s], cls, () => send('bid', { suit: s, alone: false })));
+      });
+      if (!isStuck) {
+        row.appendChild(btn('Pass', 'btn-gray', () => send('bid', { suit: null })));
+      }
+      box.appendChild(row);
+    }
+
+  } else if (phase === 'discard') {
+    box.innerHTML =
+      '<div class="ctrl-title">Pick a card to discard</div>' +
+      '<div style="font-size:12px;color:rgba(255,255,255,.7)">Click any card in your hand</div>';
+    // re-render hand as all-clickable
+    renderHumanHand(state.hands[0],
+      state.hands[0].map((_,i) => i),
+      idx => send('discard', { card_idx: idx })
+    );
+
+  } else if (phase === 'playing') {
+    const t = state.trump;
+    box.innerHTML =
+      `<div class="ctrl-title">Your Turn to Play</div>
+       <div style="font-size:12px;color:rgba(255,255,255,.7)">
+         Trump: <strong style="color:#ffd700">${t ? SYMS[t]+' '+SNAME[t] : '—'}</strong>
+         &nbsp;·&nbsp; Click a highlighted card
+       </div>`;
+
+  } else if (phase === 'hand_over') {
+    const s = state.team_scores;
+    box.innerHTML =
+      `<div class="ctrl-title">Hand Over!</div>
+       <div>Score — You+P2 (Team 0): <strong>${s[0]}</strong> &nbsp;|&nbsp;
+       P1+P3 (Team 1): <strong>${s[1]}</strong></div>`;
+    const row = Object.assign(document.createElement('div'), { className: 'btn-row' });
+    row.appendChild(btn('Next Hand →', 'btn-gold', () => send('next_hand')));
+    box.appendChild(row);
+
+  } else if (phase === 'game_over') {
+    const s = state.team_scores;
+    const w = s[0] > s[1] ? 'You & Player 2 (Team 0)' : 'Player 1 & Player 3 (Team 1)';
+    box.innerHTML =
+      `<div class="ctrl-title">🎉 ${w} win!</div>
+       <div>Final — Team 0: <strong>${s[0]}</strong> &nbsp;|&nbsp;
+       Team 1: <strong>${s[1]}</strong></div>`;
+    const row = Object.assign(document.createElement('div'), { className: 'btn-row' });
+    row.appendChild(btn('New Game', 'btn-gold', newGame));
+    box.appendChild(row);
+
+  } else {
+    box.innerHTML = `<div class="ctrl-title">Phase: ${phase}</div>`;
+  }
+}
+
+function btn(label, cls, fn) {
+  const el = document.createElement('button');
+  el.className = cls;
+  el.textContent = label;
+  el.addEventListener('click', fn);
+  return el;
+}
+
+// ── main render ────────────────────────────────────────────────────────────
+function render() {
+  if (!gs) return;
+
+  // header
+  const t = gs.trump;
+  document.getElementById('hdr-scores').textContent =
+    `You+P2 (T0): ${gs.team_scores[0]}  |  P1+P3 (T1): ${gs.team_scores[1]}`;
+  document.getElementById('hdr-trump').textContent  =
+    t ? `Trump: ${SYMS[t]} ${SNAME[t]}` : 'Trump: —';
+  document.getElementById('hdr-dealer').textContent =
+    `Dealer: P${gs.dealer}  ·  Tricks: ${gs.tricks_won[0]}–${gs.tricks_won[1]}`;
+
+  // bot hands (face-down)
+  renderBotHand('h1', gs.hands[1]);
+  renderBotHand('h2', gs.hands[2]);
+  renderBotHand('h3', gs.hands[3]);
+
+  // trick
+  renderTrick(gs.trick);
+
+  // human hand
+  if (gs.phase === 'playing') {
+    renderHumanHand(gs.hands[0], lc, idx => send('play', { card_idx: idx }));
+  } else if (gs.phase !== 'discard') {
+    // discard phase is handled inside renderCtrl
+    renderHumanHand(gs.hands[0], null, null);
+  }
+
+  // controls
+  renderCtrl(gs);
+}
+
+// ── entry points ───────────────────────────────────────────────────────────
+function newGame() {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('game').style.display    = 'flex';
+  document.getElementById('msgs').innerHTML        = '';
+  gs = null; lc = null;
+  send('new_game');
+}
+</script>
+</body>
+</html>
