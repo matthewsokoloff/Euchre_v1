@@ -74,7 +74,10 @@ def _make_game(state_data=None):
     else:
         game.state = GameState(
             hands=[[] for _ in range(4)],
-            dealer=3,          # deal_new_hand() increments first → dealer=0
+            # dealer=3 so that the very first call to deal_new_hand() (which does
+            # dealer = (dealer+1)%4) produces dealer=0, making player 1 the first
+            # bidder and giving the human (player 0) a full first hand as dealer.
+            dealer=3,
             trump=None,
             trick=[],
             scores=[0, 0],
@@ -186,12 +189,16 @@ def _advance_bidding(game, bid_round, bid_pos, messages):
 
         # --- Bot bids ---
         if bid_round == 1:
-            suit, alone = game.choose_trump(
+            chosen_suit, alone = game.choose_trump(
                 game.state.hands[player],
                 round_number=1,
                 upcard=upcard,
                 dealer=(player == dealer),
             )
+            # In round 1 the only legal call is the upcard's suit (ordering up).
+            # choose_trump returns the best suit overall; any suit other than
+            # upcard.suit is treated as a pass.
+            suit = chosen_suit if chosen_suit == upcard.suit else None
 
             if suit == upcard.suit:
                 messages.append(f"Player {player} orders it up!")
@@ -287,6 +294,7 @@ def _advance_playing(game, trick_num, messages):
             continue
 
         if game.bot_types[current] == "ismcts":
+            # choose_card always returns a card object from the player's actual hand
             card = game.ismcts_bot.choose_card(game, current)
         else:
             card = decide_move(hand, game.state.trick, game.state.trump, current % 2)

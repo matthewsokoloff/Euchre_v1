@@ -427,6 +427,8 @@ function renderCtrl(state) {
   box.innerHTML = '';
   const phase = state.phase;
 
+  // isStuck: in Euchre, if all other players pass in round 2, the dealer is
+  // "stuck" and must name trump — no passing allowed.
   const isStuck =
     state.bid_round === 2 &&
     state.bid_pos   === 3 &&
