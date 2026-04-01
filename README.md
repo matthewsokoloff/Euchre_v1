@@ -71,10 +71,10 @@ This project implements a complete **Euchre game engine** with multiple bot stra
 
 ### Key Achievements
 
-✅ Full rule-enforcing game engine
-✅ ISMCTS algorithm with void suit tracking and determinization (world-building based on current information)
-✅ Comprehensive testing framework comparing ISMCTS vs heuristic bots
-✅ Game state management with proper card distribution (shuffling + dealing)
+Full rule-enforcing game engine
+ISMCTS algorithm with void suit tracking and determinization (world-building based on current information)
+Comprehensive testing framework comparing ISMCTS vs heuristic bots
+Game state management with proper card distribution (shuffling + dealing)
 
 ---
 
