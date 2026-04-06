@@ -11,7 +11,6 @@ Implementation of **Information Set Monte Carlo Tree Search (ISMCTS)** algorithm
 - [The ISMCTS Algorithm](#the-ismcts-algorithm)
 - [Project Structure](#project-structure)
 - [Current Status](#current-status)
-- [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -149,7 +148,7 @@ To adjust difficulty, modify the simulations parameter:
 
 ---
 
-## The ISMCTS Algorithm
+## ISMCTS Algorithm
 
 ### Overview
 
