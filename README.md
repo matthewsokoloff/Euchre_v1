@@ -8,7 +8,7 @@ Implementation of **Information Set Monte Carlo Tree Search (ISMCTS)** algorithm
 - [Project Overview](#project-overview)
 - [How to Run](#how-to-run)
 - [Game Modes](#game-modes)
-- [The ISMCTS Algorithm](#the-ismcts-algorithm)
+- [ISMCTS Algorithm](#ismcts-algorithm)
 - [Project Structure](#project-structure)
 - [Current Status](#current-status)
 
