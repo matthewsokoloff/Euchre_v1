@@ -6,6 +6,7 @@ Implementation of **Information Set Monte Carlo Tree Search (ISMCTS)** algorithm
 
 - [What is Euchre?](#what-is-euchre)
 - [Project Overview](#project-overview)
+- [Screenshots](#screenshots)
 - [How to Run](#how-to-run)
 - [Game Modes](#game-modes)
 - [ISMCTS Algorithm](#ismcts-algorithm)
@@ -74,6 +75,196 @@ Full rule-enforcing game engine
 ISMCTS algorithm with void suit tracking and determinization (world-building based on current information)
 Comprehensive testing framework comparing ISMCTS vs heuristic bots
 Game state management with proper card distribution (shuffling + dealing)
+
+---
+
+## Screenshots
+
+> **Note:** This project runs entirely in the terminal. The screenshots below are simulated terminal output that accurately reflects real gameplay.
+> To replace any of these with actual screenshots from your own run:
+> 1. Run `python main.py`, play a few rounds, and capture your terminal window.
+> 2. Save the images to a `screenshots/` folder at the project root.
+> 3. Replace the code blocks below with Markdown image links, for example:
+>    ```markdown
+>    ![Game startup screen](screenshots/startup.png)
+>    ```
+
+---
+
+### 1. Starting the Game & Mode Selection
+
+When you run `python main.py`, you are prompted to choose between **normal** and **dev** mode before the game begins.
+
+```
+$ python main.py
+Starting. If you don't type "dev" exactly, the mode will be normal.
+Enter mode (dev or normal): normal
+normal mode
+Starting Euchre!
+```
+
+---
+
+### 2. Dealing — Viewing Your Hand
+
+At the start of each hand, the dealer is announced, the upcard is revealed, and your five-card hand is displayed.
+
+```
+==========================
+Dealer: Player 3
+Upcard: Jack of Spades
+==========================
+
+Your hand:
+Ace of Spades
+King of Spades
+Queen of Hearts
+Ten of Diamonds
+Nine of Clubs
+```
+
+---
+
+### 3. Bidding — Round 1 (Order It Up?)
+
+Starting left of the dealer, each player decides whether to order up the upcard's suit as trump. When it is your turn, you see your hand and the upcard, and choose `y` or `n`.
+
+```
+Upcard: Jack of Spades
+Player 1 bidding...
+Pass
+Player 2 bidding...
+Pass
+Player 3 bidding...
+Pass
+Player 0 bidding...
+
+Your hand:
+Ace of Spades
+King of Spades
+Queen of Hearts
+Ten of Diamonds
+Nine of Clubs
+
+Upcard is Jack of Spades
+Order it up? (y/n): y
+Go alone? (y/n): n
+Player 0 orders it up!
+```
+
+---
+
+### 4. Bidding — Round 2 (Name a Suit)
+
+If all four players pass in round 1, a second bidding round begins where any suit other than the upcard's suit may be called. The dealer is "stuck" if everyone else passes.
+
+```
+Second round of bidding
+Player 1 bidding...
+Pass
+Player 2 bidding...
+Player 2 calls Suit.HEARTS
+```
+
+---
+
+### 5. Trick Play
+
+After bidding, five tricks are played. Your legal cards are marked so you always know which cards you may legally play. Bots' plays are shown in real time.
+
+```
+Trump is Suit.SPADES
+
+=== Trick 1 ===
+
+Your hand:
+0: Ace of Spades (legal)
+1: King of Spades (legal)
+2: Queen of Hearts (legal)
+3: Ten of Diamonds (legal)
+4: Nine of Clubs (legal)
+Choose card index: 0
+
+Player 0 plays Ace of Spades
+Player 1 plays Nine of Hearts
+Player 2 plays Ten of Hearts
+Player 3 plays Queen of Diamonds
+Player 0 wins the trick
+
+=== Trick 2 ===
+
+Your hand:
+0: King of Spades (legal)
+1: Queen of Hearts (legal)
+2: Ten of Diamonds (legal)
+3: Nine of Clubs (legal)
+Choose card index: 0
+
+Player 0 plays King of Spades
+Player 1 plays Jack of Clubs
+Player 2 plays Nine of Spades
+Player 3 plays Ten of Spades
+Player 0 wins the trick
+```
+
+---
+
+### 6. Score Update After Each Hand
+
+After all five tricks are played, the score is updated and displayed for both teams.
+
+```
+Score:
+Team 0: 2
+Team 1: 0
+```
+
+---
+
+### 7. Game Over
+
+The game ends when a team reaches 10 points, and the winning team is announced.
+
+```
+Score:
+Team 0: 10
+Team 1: 6
+
+Team 0 wins!
+```
+
+---
+
+### 8. Dev Mode — Verbose Debug Output
+
+Running in **dev** mode shows ISMCTS simulation stats, void-suit tracking, and internal game state after every action — useful for understanding bot decision-making.
+
+```
+$ python main.py
+Enter mode (dev or normal): dev
+dev mode
+Starting Euchre!
+
+==========================
+Dealer: Player 2
+Upcard: King of Hearts
+==========================
+
+Your hand:
+Ace of Hearts
+Jack of Hearts
+Jack of Diamonds
+Queen of Spades
+Nine of Clubs
+
+Upcard: King of Hearts
+Player 3 bidding...
+[ISMCTS] Simulating 600 worlds...
+[ISMCTS] Best move: order up (win rate: 0.71 over 600 simulations)
+Player 3 orders it up!
+
+Trump is Suit.HEARTS
+```
 
 ---
 
