@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document explains the testing approach for the Euchre bot project, covering what tests currently exist and what still needs to be tested.
+This document explains the testing approach for the Euchre bot project and covers what we test.
 
 ---
 
@@ -79,9 +79,50 @@ Sets up a controlled hand where Player 0 has all Hearts trumps and runs `play_tr
 
 ### 8. Scoring (`test_score_hand_all_cases`)
 
-Verifies two scoring cases:
+Verifies all scoring cases:
 - Makers win 3 tricks → 1 point for makers
 - Defenders win 3 tricks (euchre) → 2 points for defenders
+- Makers win all 5 tricks (sweep) → 2 points for makers
+- Maker goes alone and wins all 5 tricks → 4 points for makers
+- Maker goes alone and fails → 0 points for makers
+
+### 9. Bower Logic
+
+| Test | What it checks |
+|------|----------------|
+| Left bower recognition | Jack of the sister suit is treated as trump in `effective_suit`, `legal_moves`, and `trick_winner` |
+| Left bower leading | Left bower correctly leads as trump, not as its printed suit |
+| Right bower | Jack of trump is always the highest card in `card_value` and wins every trick |
+| `trick_winner` with multiple trump | Highest trump wins (right bower > left bower > ace > king > ...) |
+| `legal_moves` with left bower | A hand with the left bower is forced to follow trump when trump is led |
+
+### 10. Bidding – All Rounds
+
+| Test | What it checks |
+|------|----------------|
+| Round 2 forbidden suit | `choose_trump` never returns the upcard suit in round 2 |
+| Stick the dealer | A dealer with a weak hand is still assigned the best available suit in round 3 |
+| Upcard pickup (dealer swap) | `remove_worst_card` gives the dealer the upcard and keeps the hand at 5 cards |
+
+### 11. Hand Strength
+
+Tests `hand_strength` directly with known hands to validate point totals for various trump suit and card combinations.
+
+### 12. ISMCTS Correctness
+
+| Test | What it checks |
+|------|----------------|
+| Determinization void suit constraints | Randomly generated opponent hands never include a suit the player is known to be void in |
+| Alone play – skipped player | The maker's partner is correctly skipped during trick play in a lone hand |
+| Node UCT formula | `best_child` in `node.py` selects the correct child given known visit and win values |
+
+### 13. Game-Level Tests
+
+| Test | What it checks |
+|------|----------------|
+| Full game to 10 points | `sim_game` exits when a team reaches 10 and the reported winner matches the scores |
+| Deck integrity | After dealing, all 24 cards appear exactly once across the 4 hands plus the upcard |
+| Player rotation | The dealer advances by 1 each hand; the player left of the dealer leads the first trick |
 
 ---
 
@@ -98,34 +139,4 @@ Verifies two scoring cases:
 - Win rate when ISMCTS called trump
 - Euchre rate when ISMCTS called trump
 
-This test is the primary tool for evaluating algorithm improvements. A baseline win rate of ~62% at 600 simulations vs. the heuristic bot has been established.
-
----
-
-## What Still Needs to Be Tested
-
-### High Priority
-
-- **Left Bower recognition**: Confirm the Jack of the sister suit is treated as trump in `effective_suit`, `legal_moves`, and `trick_winner`. Edge cases like the left bower leading a trick or following suit rules involving the left bower are not currently tested.
-- **Right Bower**: Confirm the Jack of trump is always the highest card in `card_value` and always wins in `trick_winner`.
-- **Bidding – round 2 (forbidden suit)**: The second round of bidding, where the upcard suit is forbidden, has no dedicated test. Verify that `choose_trump` never returns the forbidden suit.
-- **Stick the dealer**: No test covers the forced dealer pick in round 3. A dealer with a weak hand should still be assigned the best available suit.
-- **Going alone scoring**: The 4-point lone hand win and the 0-point lone hand loss paths in `score_hand` are not tested.
-- **Upcard pickup (dealer swap)**: Verify that `remove_worst_card` correctly gives the dealer the upcard and reduces their hand back to 5 cards.
-
-### Medium Priority
-
-- **`legal_moves` with left bower**: A hand containing the Jack of the sister suit should be forced to follow trump if trump is led.
-- **`trick_winner` with multiple trump**: When several trump cards are played, confirm the highest trump (right bower > left bower > ace > ...) wins.
-- **`hand_strength` function**: No tests currently cover the hand strength scoring used to decide whether to call trump. Test it directly with known hands to validate point totals.
-- **`cards_to_win_trick` edge cases**: The current implementation returns the full legal play list rather than the filtered winning subset (possible bug). This should be verified and tested.
-- **ISMCTS determinization**: Unit tests to check that the randomly generated opponent hands respect void suit constraints (i.e., a player flagged as void in spades is never assigned a spades card).
-- **Alone play – skipped player**: In a lone hand, the maker's partner should be skipped during trick play. `play_tricks` and `play_tricks_human` both have this logic but it is not covered by a test.
-
-### Lower Priority
-
-- **Full game to 10 points (`sim_game`)**: Confirm the game exits when a team reaches 10 and that the reported winning team matches the scores.
-- **Deck integrity**: Confirm after dealing that all 24 cards appear exactly once across the 4 hands plus the upcard.
-- **Player rotation**: Confirm the dealer advances by 1 each hand and that the player left of the dealer leads the first trick.
-- **ISMCTS node UCT formula**: The `best_child` selection in `node.py` should be unit tested with known visit/win values to confirm it selects the correct child.
-- **Performance regression**: Add a lightweight version of `test_ismcts_vs_heuristic.py` (e.g., 20 games, 200 sims) that can be run as part of CI to catch regressions in algorithm quality.
+This test is the primary tool for evaluating algorithm improvements. A baseline win rate of ~62% at 600 simulations vs. the heuristic bot has been established. A lightweight version (20 games, 200 sims) is also run as part of CI to catch performance regressions.
